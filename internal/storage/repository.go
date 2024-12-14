@@ -1,13 +1,9 @@
 package storage
 
-import(
+import (
 	"errors"
+	"fmt"
 )
-//go:generate mockgen -source=repository.go -destination=../mock/repository.go -package=mock
-type Repositories interface {
-	UpdateGauge(nameMetric string, val float64) error
-	AddCounter(nameMetric string, val int64) error
-}
 
 type MemStorage struct {
 	gauge   map[string]float64
@@ -34,3 +30,31 @@ func (m *MemStorage) AddCounter(nameMetric string, val int64) error {
 	return nil
 }
 
+func (m *MemStorage) GetMetricGauge(nameM string) (float64, error) {
+	if v, ok := m.gauge[nameM]; ok {
+		return v, nil
+	}
+	return 0, errors.New("data doesn't exist")
+}
+
+func (m *MemStorage) GetMetricCounter(nameM string) (int64, error) {
+	fmt.Printf("%#v", nameM)
+	if v, ok := m.counter[nameM]; ok {
+		return v, nil
+	}
+	return 0, errors.New("data doesn't exist")
+}
+
+func (m *MemStorage) GetMetricAll() (map[string]string, error) {
+	list := make(map[string]string, len(m.counter)+len(m.gauge))
+	for i, v := range m.gauge {
+		list[i] = fmt.Sprintf("%v", v)
+	}
+	for i, v := range m.counter {
+		list[i] = fmt.Sprintf("%v", v)
+	}
+	if len(list) == 0 {
+		return nil, errors.New("data doesn't exist")
+	}
+	return list, nil
+}

@@ -1,13 +1,12 @@
 package main
 
 import (
-	"errors"
 	"fmt"
-	"io"
 	"math/rand"
-	"net/http"
 	"runtime"
 	"time"
+
+	"github.com/go-resty/resty/v2"
 )
 
 type gauge float64
@@ -17,6 +16,16 @@ const (
 	pollInterval   time.Duration = 2 * time.Second
 	reportInterval time.Duration = 10 * time.Second
 )
+
+var clientOnce *resty.Client
+
+func newClientResty() *resty.Client {
+	clientOnce = resty.New().
+		SetBaseURL("http://localhost:8080").
+		SetHeader("Content-Type", "text/plain")
+
+	return clientOnce
+}
 
 type metrics struct {
 	PollCount counter
@@ -62,17 +71,25 @@ func (m *metrics) updateMetrics() {
 }
 
 func (m metrics) sendMetrics() error {
+	clientOnce = newClientResty()
 	fmt.Printf("send metrics PollCounter: %v\n", m.PollCount)
-	http.Post(fmt.Sprintf("http://localhost:8080/update/counter/PollCount/%v", m.PollCount), "text/plain", nil)
-	for i, v := range m.metrics {
-		resp, err := http.Post(fmt.Sprintf("http://localhost:8080/update/gauge/%s/%v", i, v), "text/plain", nil)
-		if err != nil {
-			return errors.New(fmt.Sprint("Error with request to server", err.Error()))
+	resp, err := clientOnce.R().Post(fmt.Sprintf("/update/counter/PollCount/%v", m.PollCount))
+	if err != nil {
+		if resp.Body() != nil {
+			return fmt.Errorf("error with request to server. \r\n\terror:%w\r\n\tresponse body: %v", err, resp.String())
 		}
-		_, _ = io.Copy(io.Discard, resp.Body)
-		resp.Body.Close()
-		fmt.Println(resp.Status)
-
+		return fmt.Errorf("error with request to server. \r\n\terror:%w", err)
+	}
+	fmt.Println(resp.StatusCode())
+	for i, v := range m.metrics {
+		resp, err := clientOnce.R().Post(fmt.Sprintf("/update/gauge/%s/%v", i, v))
+		if err != nil {
+			if resp.Body() != nil {
+				return fmt.Errorf("error with request to server. \r\n\terror:%w\r\n\tresponse body: %v", err, resp.String())
+			}
+			return fmt.Errorf("error with request to server. \r\n\terror:%w", err)
+		}
+		fmt.Println(resp.StatusCode())
 	}
 	return nil
 }
@@ -87,8 +104,7 @@ func main() {
 		//update metrics
 		time.Sleep(pollInterval)
 		currentMetrics.updateMetrics()
-		// fmt.Printf("time: %v, update metrics\n", time.Since(lastSendTime))
-		// fmt.Printf("%+v\n", currentMetrics)
+
 		//send metrics
 		if time.Since(lastSendTime) >= reportInterval {
 			err := currentMetrics.sendMetrics()

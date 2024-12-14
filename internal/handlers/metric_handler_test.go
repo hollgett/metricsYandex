@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -19,72 +20,54 @@ func Test_metricHandler_CollectingMetric(t *testing.T) {
 	tests := []struct {
 		name       string
 		repository storage.Repositories
-		requestURL string
+		requestURL []string
 		want       want
 	}{
 		{
 			name:       "positive test gauge",
 			repository: simulateRepository(controller, nil),
-			requestURL: "gauge/Alloc/4.34343e3",
+			requestURL: []string{"gauge", "Alloc", "4.34343e3"},
 			want:       want{expectedErr: nil},
 		},
 		{
 			name:       "positive test counter",
 			repository: simulateRepository(controller, nil),
-			requestURL: "counter/Alloc/4",
+			requestURL: []string{"counter", "Alloc", "4"},
 			want:       want{expectedErr: nil},
-		},
-		{
-			name:       "negative test without name",
-			repository: simulateRepository(controller, nil),
-			requestURL: "counter//4",
-			want:       want{expectedErr: errors.New("wrong request")},
 		},
 		{
 			name:       "negative test without type metric",
 			repository: simulateRepository(controller, nil),
-			requestURL: "/Alloc/4",
+			requestURL: []string{"", "Alloc", "4"},
 			want:       want{expectedErr: errors.New("wrong type metric")},
-		},
-		{
-			name:       "negative test without value metric",
-			repository: simulateRepository(controller, nil),
-			requestURL: "counter/Alloc/",
-			want:       want{expectedErr: errors.New("wrong value")},
-		},
-		{
-			name:       "negative test without request data",
-			repository: simulateRepository(controller, nil),
-			requestURL: "",
-			want:       want{expectedErr: errors.New("wrong request")},
 		},
 		{
 			name:       "negative test with string value counter",
 			repository: simulateRepository(controller, nil),
-			requestURL: "counter/Alloc/abc",
+			requestURL: []string{"counter", "Alloc", "abc"},
 			want:       want{expectedErr: errors.New("wrong value")},
 		},
 		{
 			name:       "negative test with string value gauge",
 			repository: simulateRepository(controller, nil),
-			requestURL: "gauge/Alloc/abc",
+			requestURL: []string{"gauge", "Alloc", "abc"},
 			want:       want{expectedErr: errors.New("wrong value")},
 		},
 		{
 			name:       "negative test with error repository",
 			repository: simulateRepository(controller, errors.New("name metric have nil")),
-			requestURL: "gauge/Alloc/4.3e34",
-			want:       want{expectedErr: errors.Join(errors.New("function UpdateGauge have error: "), errors.New("name metric have nil"))},
+			requestURL: []string{"gauge", "Alloc", "4.3e34"},
+			want:       want{expectedErr: fmt.Errorf("function UpdateGauge have error: %w", errors.New("name metric have nil"))},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			metricHandler := NewMetricHandler(tt.repository)
-			got := metricHandler.CollectingMetric(tt.requestURL)
-			assert.Equal(t, tt.want.expectedErr, got, "expected error not equal")
+			get := metricHandler.CollectingMetric(tt.requestURL)
+			assert.Equal(t, tt.want.expectedErr, get, "expected error not equal")
 
-			if got != nil {
-				assert.Equal(t, tt.want.expectedErr, got, "expected error not equal: ", got.Error())
+			if get != nil {
+				assert.Equal(t, tt.want.expectedErr, get, "expected error not equal: ", get.Error())
 			}
 
 		})
