@@ -9,19 +9,24 @@ import (
 	"github.com/go-resty/resty/v2"
 )
 
+func init() {
+	cfg = InitAgentCommand()
+}
+
 type gauge float64
 type counter int64
 
-const (
-	pollInterval   time.Duration = 2 * time.Second
-	reportInterval time.Duration = 10 * time.Second
+var (
+	cfg            *AgentArgs
+	pollInterval   time.Duration
+	reportInterval time.Duration
 )
 
 var clientOnce *resty.Client
 
 func newClientResty() *resty.Client {
 	clientOnce = resty.New().
-		SetBaseURL("http://localhost:8080").
+		SetBaseURL("http://"+cfg.Addr).
 		SetHeader("Content-Type", "text/plain")
 
 	return clientOnce
@@ -95,6 +100,9 @@ func (m metrics) sendMetrics() error {
 }
 
 func main() {
+	fmt.Println(cfg)
+	pollInterval = time.Duration(cfg.PollInterval) * time.Second
+	reportInterval = time.Duration(cfg.ReportInterval) * time.Second
 	currentMetrics := metrics{
 		PollCount: 0,
 		metrics:   make(map[string]gauge),
