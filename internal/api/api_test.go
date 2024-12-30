@@ -11,12 +11,13 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/hollgett/metricsYandex.git/internal/handlers"
 	"github.com/hollgett/metricsYandex.git/internal/mock"
+	"github.com/hollgett/metricsYandex.git/internal/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func testRouter(h handlers.MetricHandler) chi.Router {
-	api := NewApiMetric(h)
+	api := NewAPIMetric(h)
 	rtr := chi.NewMux()
 	rtr.Route("/", func(r chi.Router) {
 		r.Get("/", api.GetMetricAll)
@@ -176,8 +177,8 @@ func TestApiMetric_GetMetric(t *testing.T) {
 func simulateMetricHandler(ctrl *gomock.Controller, err error) handlers.MetricHandler {
 	mockHandler := mock.NewMockMetricHandler(ctrl)
 
-	mockHandler.EXPECT().CollectingMetric(gomock.AssignableToTypeOf([]string{})).Return(err).AnyTimes()
-	mockHandler.EXPECT().GetMetric(gomock.AssignableToTypeOf([]string{})).Return("result", err).AnyTimes()
+	mockHandler.EXPECT().CollectingMetric(gomock.AssignableToTypeOf(models.Metrics{})).Return(err).AnyTimes()
+	mockHandler.EXPECT().GetMetric(gomock.AssignableToTypeOf(models.Metrics{})).Return("result", err).AnyTimes()
 
 	return mockHandler
 }

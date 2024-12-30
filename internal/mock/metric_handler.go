@@ -8,6 +8,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
+	models "github.com/hollgett/metricsYandex.git/internal/models"
 )
 
 // MockMetricHandler is a mock of MetricHandler interface.
@@ -34,32 +35,31 @@ func (m *MockMetricHandler) EXPECT() *MockMetricHandlerMockRecorder {
 }
 
 // CollectingMetric mocks base method.
-func (m *MockMetricHandler) CollectingMetric(requestParam []string) error {
+func (m *MockMetricHandler) CollectingMetric(metrics *models.Metrics) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CollectingMetric", requestParam)
+	ret := m.ctrl.Call(m, "CollectingMetric", metrics)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // CollectingMetric indicates an expected call of CollectingMetric.
-func (mr *MockMetricHandlerMockRecorder) CollectingMetric(requestParam interface{}) *gomock.Call {
+func (mr *MockMetricHandlerMockRecorder) CollectingMetric(metrics interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CollectingMetric", reflect.TypeOf((*MockMetricHandler)(nil).CollectingMetric), requestParam)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CollectingMetric", reflect.TypeOf((*MockMetricHandler)(nil).CollectingMetric), metrics)
 }
 
 // GetMetric mocks base method.
-func (m *MockMetricHandler) GetMetric(requestParam []string) (string, error) {
+func (m *MockMetricHandler) GetMetric(metrics *models.Metrics) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetMetric", requestParam)
-	ret0, _ := ret[0].(string)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret := m.ctrl.Call(m, "GetMetric", metrics)
+	ret0, _ := ret[0].(error)
+	return ret0
 }
 
 // GetMetric indicates an expected call of GetMetric.
-func (mr *MockMetricHandlerMockRecorder) GetMetric(requestParam interface{}) *gomock.Call {
+func (mr *MockMetricHandlerMockRecorder) GetMetric(metrics interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMetric", reflect.TypeOf((*MockMetricHandler)(nil).GetMetric), requestParam)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMetric", reflect.TypeOf((*MockMetricHandler)(nil).GetMetric), metrics)
 }
 
 // GetMetricAll mocks base method.

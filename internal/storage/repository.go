@@ -15,17 +15,11 @@ func NewMemStorage() Repositories {
 }
 
 func (m *MemStorage) UpdateGauge(nameMetric string, val float64) error {
-	if len(nameMetric) == 0 {
-		return errors.New("name metric have nil")
-	}
 	m.gauge[nameMetric] = val
 	return nil
 }
 
 func (m *MemStorage) AddCounter(nameMetric string, val int64) error {
-	if len(nameMetric) == 0 {
-		return errors.New("name metric have nil")
-	}
 	m.counter[nameMetric] += val
 	return nil
 }
@@ -38,7 +32,6 @@ func (m *MemStorage) GetMetricGauge(nameM string) (float64, error) {
 }
 
 func (m *MemStorage) GetMetricCounter(nameM string) (int64, error) {
-	fmt.Printf("%#v", nameM)
 	if v, ok := m.counter[nameM]; ok {
 		return v, nil
 	}

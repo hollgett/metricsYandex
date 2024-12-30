@@ -3,9 +3,16 @@ package handlers
 import (
 	"errors"
 	"fmt"
-	"strconv"
 
+	"github.com/hollgett/metricsYandex.git/internal/logger"
+	"github.com/hollgett/metricsYandex.git/internal/models"
 	"github.com/hollgett/metricsYandex.git/internal/storage"
+	"go.uber.org/zap"
+)
+
+const (
+	gauge   string = "gauge"
+	counter string = "counter"
 )
 
 type metricHandler struct {
@@ -16,54 +23,57 @@ func NewMetricHandler(repo storage.Repositories) MetricHandler {
 	return &metricHandler{repo: repo}
 }
 
-const (
-	gauge   string = "gauge"
-	counter string = "counter"
-)
-
-func (m *metricHandler) CollectingMetric(requestParam []string) error {
-	typeM, nameM, valueM := requestParam[0], requestParam[1], requestParam[2]
-	switch typeM {
-	case gauge:
-		val, err := strconv.ParseFloat(valueM, 64)
-		if err != nil {
-			return errors.New("wrong value")
-		}
-		if err := m.repo.UpdateGauge(nameM, val); err != nil {
-			return fmt.Errorf("function UpdateGauge have error: %w", err)
-		}
-	case counter:
-		val, err := strconv.ParseInt(valueM, 10, 64)
-		if err != nil {
-			return errors.New("wrong value")
-		}
-		if err := m.repo.AddCounter(nameM, val); err != nil {
-			return fmt.Errorf("function AddCounter have error: %w", err)
-		}
-	default:
-		return errors.New("wrong type metric")
+func ValidateTypeMetric(typeM string) error {
+	if typeM != "counter" && typeM != "gauge" {
+		return fmt.Errorf("type metric error, got: %s", typeM)
 	}
 	return nil
 }
 
-func (m *metricHandler) GetMetric(requestParam []string) (string, error) {
-	typeM, nameM := requestParam[0], requestParam[1]
-	fmt.Println(typeM, nameM)
-	switch typeM {
-	case gauge:
-		val, err := m.repo.GetMetricGauge(nameM)
-		if err != nil {
-			return "", fmt.Errorf("get metric have error: %w", err)
-		}
-		return strconv.FormatFloat(val, 'G', -1, 64), nil
-	case counter:
-		val, err := m.repo.GetMetricCounter(nameM)
-		if err != nil {
-			return "", fmt.Errorf("get metric have error: %w", err)
-		}
-		return strconv.FormatInt(val, 10), nil
+func ValidateNameMetric(nameM string) error {
+	if len(nameM) == 0 {
+		return fmt.Errorf("name metric error, got: %s", nameM)
 	}
-	return "", errors.New("get metric error")
+	return nil
+}
+
+func (m *metricHandler) CollectingMetric(metrics *models.Metrics) error {
+	switch metrics.MType {
+	case gauge:
+		if err := m.repo.UpdateGauge(metrics.ID, *metrics.Value); err != nil {
+			return fmt.Errorf("function UpdateGauge have error: %w", err)
+		}
+		return nil
+	case counter:
+
+		if err := m.repo.AddCounter(metrics.ID, *metrics.Delta); err != nil {
+			return fmt.Errorf("function AddCounter have error: %w", err)
+		}
+		return nil
+	default:
+		return errors.New("default case, wrong type metric")
+	}
+}
+
+func (m *metricHandler) GetMetric(metrics *models.Metrics) error {
+	switch metrics.MType {
+	case gauge:
+		val, err := m.repo.GetMetricGauge(metrics.ID)
+		if err != nil {
+			return fmt.Errorf("get metric have error: %w", err)
+		}
+		metrics.Value = &val
+		return nil
+	case counter:
+		val, err := m.repo.GetMetricCounter(metrics.ID)
+		if err != nil {
+			return fmt.Errorf("get metric have error: %w", err)
+		}
+		metrics.Delta = &val
+		return nil
+	default:
+		return errors.New("case default, get metric error")
+	}
 }
 
 func (m *metricHandler) GetMetricAll() (string, error) {
@@ -84,12 +94,17 @@ func (m *metricHandler) GetMetricAll() (string, error) {
 		</tr>
 		</thead>
 	`
+	var body string
+	for i, v := range listMetric {
+		logger.Log.Info(
+			"GetMetricAll service got",
+			zap.String("name", i),
+			zap.String("value", v),
+		)
+		body += fmt.Sprintf(`<tr><td>%v</td><td>%v</td></tr><br>`, i, v)
+	}
 	bodyBottom := `</table>
 			</body>
 		</html>`
-	var body string
-	for i, v := range listMetric {
-		body += fmt.Sprintf(`<tr><td>%v</td><td>%v</td></tr>`+"\r", i, v)
-	}
 	return fmt.Sprint(bodyHead, body, bodyBottom), nil
 }
