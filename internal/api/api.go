@@ -23,7 +23,7 @@ func (a *APIMetric) UpdateMetricPost(w http.ResponseWriter, r *http.Request) {
 	contT := r.Header.Get("Content-Type")
 	switch contT {
 	case "application/json":
-		a.UpdateMetricPostJson(w, r)
+		a.UpdateMetricPostJSON(w, r)
 	default:
 		a.UpdateMetricPlainText(w, r)
 	}
@@ -55,7 +55,7 @@ func (a *APIMetric) UpdateMetricPlainText(w http.ResponseWriter, r *http.Request
 	w.WriteHeader(http.StatusOK)
 }
 
-func (a *APIMetric) UpdateMetricPostJson(w http.ResponseWriter, r *http.Request) {
+func (a *APIMetric) UpdateMetricPostJSON(w http.ResponseWriter, r *http.Request) {
 	metrics := models.Metrics{}
 	json.NewDecoder(r.Body).Decode(&metrics)
 	logger.LogInfo("UpdateMetricPostJson start", zap.Any("value", metrics), zap.String("content type", r.Header.Get("Content-Type")))

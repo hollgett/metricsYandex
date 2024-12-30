@@ -68,7 +68,7 @@ func (m *metrics) updateMetrics() {
 	m.metrics["TotalAlloc"] = float64(memStats.TotalAlloc)
 }
 
-func (m metrics) sendMetricsJson() error {
+func (m metrics) sendMetricsJSON() error {
 	fmt.Printf("send metrics PollCounter: %v\n", m.PollCount)
 	resp, err := clientOnce.R().
 		SetBody(Metrics{
@@ -129,7 +129,7 @@ func main() {
 
 		//send metrics
 		if time.Since(lastSendTime) >= reportInterval {
-			err := currentMetrics.sendMetricsJson()
+			err := currentMetrics.sendMetricsJSON()
 			if err != nil {
 				fmt.Println("error catch: ", err)
 				return
