@@ -7,6 +7,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/hollgett/metricsYandex.git/internal/mock"
+	"github.com/hollgett/metricsYandex.git/internal/models"
 	"github.com/hollgett/metricsYandex.git/internal/storage"
 	"github.com/stretchr/testify/assert"
 )
@@ -63,7 +64,7 @@ func Test_metricHandler_CollectingMetric(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			metricHandler := NewMetricHandler(tt.repository)
-			get := metricHandler.CollectingMetric(tt.requestURL)
+			get := metricHandler.CollectingMetric(&models.Metrics{})
 			assert.Equal(t, tt.want.expectedErr, get, "expected error not equal")
 
 			if get != nil {
