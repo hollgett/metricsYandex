@@ -21,7 +21,7 @@ func RespondWithSuccess(w http.ResponseWriter, contentT string, code int, respon
 	w.WriteHeader(code)
 	switch contentT {
 	case "application/json":
-		if err := jsonutil.EncoderJson(w, response); err != nil {
+		if err := jsonutil.EncoderJSON(w, response); err != nil {
 			RespondWithError(w, http.StatusInternalServerError, "EncoderJson", err.Error())
 		}
 	default:

@@ -49,7 +49,7 @@ func (a *APIMetric) UpdateMetricPlainText(w http.ResponseWriter, r *http.Request
 
 func (a *APIMetric) UpdateMetricJSON(w http.ResponseWriter, r *http.Request) {
 	metrics := models.Metrics{}
-	if err := jsonutil.DecoderJson(r.Body, &metrics); err != nil {
+	if err := jsonutil.DecoderJSON(r.Body, &metrics); err != nil {
 		RespondWithError(w, http.StatusBadRequest, "decode json", err.Error())
 		return
 	}
@@ -91,7 +91,7 @@ func (a *APIMetric) GetMetricPlainText(w http.ResponseWriter, r *http.Request) {
 func (a *APIMetric) GetMetricJSON(w http.ResponseWriter, r *http.Request) {
 	var metrics models.Metrics
 
-	if err := jsonutil.DecoderJson(r.Body, &metrics); err != nil {
+	if err := jsonutil.DecoderJSON(r.Body, &metrics); err != nil {
 		RespondWithError(w, http.StatusBadRequest, "getMetricJSON decode error", err.Error())
 		return
 	}
