@@ -25,7 +25,7 @@ func validatePort(addr string) error {
 
 func InitConfig() error {
 	addr := flag.String("a", ":8080", "setup server address host:port")
-	commandAddr := CommandAddr{}
+	commandAddr := &CommandAddr{}
 	if err := env.Parse(commandAddr); err != nil {
 		return err
 	}
@@ -39,6 +39,6 @@ func InitConfig() error {
 		return err
 	}
 
-	Cfg = commandAddr
+	Cfg = *commandAddr
 	return nil
 }
