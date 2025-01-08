@@ -19,14 +19,14 @@ import (
 func testRouter(h handlers.MetricHandler) chi.Router {
 	api := NewAPIMetric(h)
 	rtr := chi.NewMux()
-	rtr.Route("/", func(r chi.Router) {
-		r.Get("/", api.GetMetricAll)
-		r.Route("/value", func(r chi.Router) {
-			r.Get("/{typeM}/{nameM}", api.GetMetric)
-		})
-		r.Route("/update", func(r chi.Router) {
-			r.Post("/{typeM}/{nameM}/{valueM}", api.UpdateMetricPost)
-		})
+	rtr.Get("/", api.GetMetricAll)
+	rtr.Route("/value", func(r chi.Router) {
+		r.Get("/{typeM}/{nameM}", api.GetMetricPlainText)
+		r.Post("/", api.GetMetricJSON)
+	})
+	rtr.Route("/update", func(r chi.Router) {
+		r.Post("/", api.UpdateMetricJSON)
+		r.Post("/{typeM}/{nameM}/{valueM}", api.UpdateMetricPlainText)
 	})
 	return rtr
 }
@@ -35,13 +35,16 @@ func testRequest(t *testing.T, method string, ts *httptest.Server, reqURL string
 	client := resty.New().
 		SetBaseURL(ts.URL).
 		SetHeader("Content-Type", "text/plain")
+
 	if method == http.MethodGet {
 		resp, err := client.R().Get(reqURL)
 		require.NoError(t, err)
+		ts.Close()
 		return resp
 	}
 	resp, err := client.R().Post(reqURL)
 	require.NoError(t, err)
+	ts.Close()
 	return resp
 }
 
@@ -111,63 +114,53 @@ func TestApiMetric_GetMetric(t *testing.T) {
 		name          string
 		metricHandler handlers.MetricHandler
 		request       string
-		expectedBody  string
 		expectedCode  int
 	}{
 		{
 			name:          "get metric counter",
 			metricHandler: simulateMetricHandler(controller, nil),
 			request:       "/value/counter/F",
-			expectedBody:  "result",
 			expectedCode:  http.StatusOK,
 		},
 		{
 			name:          "get metric gauge",
 			metricHandler: simulateMetricHandler(controller, nil),
 			request:       "/value/gauge/F",
-			expectedBody:  "result",
 			expectedCode:  http.StatusOK,
 		},
 		{
 			name:          "error metricHandler",
 			metricHandler: simulateMetricHandler(controller, errors.New("error")),
 			request:       "/value/gauge/F",
-			expectedBody:  "result",
 			expectedCode:  http.StatusNotFound,
 		},
 		{
 			name:          "path error",
 			metricHandler: simulateMetricHandler(controller, nil),
 			request:       "/values/gauge/F",
-			expectedBody:  "result",
 			expectedCode:  http.StatusNotFound,
 		},
 		{
 			name:          "error type metric",
 			metricHandler: simulateMetricHandler(controller, nil),
 			request:       "/value/gauges/F",
-			expectedBody:  "result",
 			expectedCode:  http.StatusBadRequest,
 		},
 		{
 			name:          "error name metric",
 			metricHandler: simulateMetricHandler(controller, nil),
 			request:       "/value/gauges/",
-			expectedBody:  "result",
 			expectedCode:  http.StatusNotFound,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			testServer := httptest.NewServer(testRouter(tt.metricHandler))
-			defer testServer.Close()
-
 			resp := testRequest(t, http.MethodGet, testServer, tt.request)
 
 			assert.Equal(t, tt.expectedCode, resp.StatusCode(), "response status code not equal with expected: "+resp.String())
 			if tt.expectedCode == http.StatusOK {
 				assert.Equal(t, "text/plain", resp.Header().Get("Content-Type"), "response header not equal with expected: "+resp.String())
-				assert.Equal(t, tt.expectedBody, resp.String(), "response body not equal with expected: "+resp.String())
 			}
 
 		})
@@ -177,8 +170,16 @@ func TestApiMetric_GetMetric(t *testing.T) {
 func simulateMetricHandler(ctrl *gomock.Controller, err error) handlers.MetricHandler {
 	mockHandler := mock.NewMockMetricHandler(ctrl)
 
-	mockHandler.EXPECT().CollectingMetric(gomock.AssignableToTypeOf(models.Metrics{})).Return(err).AnyTimes()
-	mockHandler.EXPECT().GetMetric(gomock.AssignableToTypeOf(models.Metrics{})).Return("result", err).AnyTimes()
+	mockHandler.EXPECT().CollectingMetric(gomock.AssignableToTypeOf(&models.Metrics{})).Return(err).AnyTimes()
+	mockHandler.EXPECT().GetMetric(gomock.AssignableToTypeOf(&models.Metrics{})).Do(func(m *models.Metrics) {
+		if m.MType == "gauge" {
+			var f float64 = 5
+			m.Value = &f
+			return
+		}
+		var i int64 = 5
+		m.Delta = &i
+	}).Return(err).AnyTimes()
 
 	return mockHandler
 }

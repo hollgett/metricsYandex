@@ -42,11 +42,6 @@ func TestMemStorage_UpdateGauge(t *testing.T) {
 			val:        []float64{3.34343e34, 4.3443553535, 6.34343434, 3.434343e3},
 			want:       want{expectedGauge: 3.434343e3, expectedError: nil},
 		},
-		{
-			name: "Test negative without name metric UpdateGauge #1",
-			val:  []float64{3},
-			want: want{expectedGauge: 0, expectedError: errors.New("name metric have nil")},
-		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

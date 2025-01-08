@@ -7,7 +7,6 @@ import (
 	"github.com/hollgett/metricsYandex.git/internal/api"
 	"github.com/hollgett/metricsYandex.git/internal/config"
 	"github.com/hollgett/metricsYandex.git/internal/logger"
-	"go.uber.org/zap"
 )
 
 func setupRouters(h *api.APIMetric) *chi.Mux {
@@ -17,23 +16,20 @@ func setupRouters(h *api.APIMetric) *chi.Mux {
 	rtr.Use(api.ContentTypeMiddleware("text/plain", "", "application/json"))
 	rtr.Get("/", h.GetMetricAll)
 	rtr.Route("/value", func(r chi.Router) {
-		r.Get("/{typeM}/{nameM}", h.GetMetric)
-		r.Post("/", h.GetMetric)
+		r.Get("/{typeM}/{nameM}", h.GetMetricPlainText)
+		r.Post("/", h.GetMetricJSON)
 	})
 	rtr.Route("/update", func(r chi.Router) {
-		r.Post("/", h.UpdateMetricPost)
-		r.Post("/{typeM}/{nameM}/{valueM}", h.UpdateMetricPost)
+		r.Post("/", h.UpdateMetricJSON)
+		r.Post("/{typeM}/{nameM}/{valueM}", h.UpdateMetricPlainText)
 	})
-
 	return rtr
 }
 
-func NewServer(h *api.APIMetric, cfg *config.CommandAddr) *http.Server {
-	logger.Log.Info("Server start",
-		zap.String("address", cfg.Addr))
+func NewServer(h *api.APIMetric) *http.Server {
 	r := setupRouters(h)
 	return &http.Server{
-		Addr:    cfg.Addr,
+		Addr:    config.Cfg.Addr,
 		Handler: r,
 	}
 }

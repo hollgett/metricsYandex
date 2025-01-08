@@ -13,6 +13,8 @@ type CommandAddr struct {
 	Addr string `env:"ADDRESS"`
 }
 
+var Cfg = CommandAddr{}
+
 func validatePort(addr string) error {
 	hp := strings.Split(addr, ":")
 	if _, err := strconv.Atoi(hp[1]); len(hp) != 2 || err != nil {
@@ -21,11 +23,11 @@ func validatePort(addr string) error {
 	return nil
 }
 
-func InitConfig() *CommandAddr {
+func InitConfig() error {
 	addr := flag.String("a", ":8080", "setup server address host:port")
-	commandAddr := &CommandAddr{}
+	commandAddr := CommandAddr{}
 	if err := env.Parse(commandAddr); err != nil {
-		panic(err)
+		return err
 	}
 
 	if commandAddr.Addr == "" {
@@ -34,8 +36,9 @@ func InitConfig() *CommandAddr {
 	}
 
 	if err := validatePort(commandAddr.Addr); err != nil {
-		panic(err)
+		return err
 	}
 
-	return commandAddr
+	Cfg = commandAddr
+	return nil
 }
