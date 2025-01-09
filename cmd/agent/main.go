@@ -22,7 +22,9 @@ func newClientResty() {
 	clientOnce = resty.New().
 		SetBaseURL(Cfg.Addr).
 		SetHeader("Content-Type", "application/json").
-		SetRetryCount(3)
+		SetRetryCount(3).
+		SetRetryWaitTime(2 * time.Second).
+		SetDebug(true)
 }
 
 func clientPost(metric Metrics) (*resty.Response, error) {
@@ -35,22 +37,14 @@ func clientPost(metric Metrics) (*resty.Response, error) {
 		Post("/update/")
 }
 
-func main() {
-	logger, err := zap.NewDevelopment()
-	if err != nil {
-		panic(err)
-	}
-	log = logger
-	InitConfig()
-	log.Info("agent start", zap.Any("config", Cfg))
-	newClientResty()
-
+func RequestMetric() {
 	currentMetrics := metrics{
 		PollCount: 0,
 		metrics:   make(map[string]float64),
 	}
-	lastSendTime := time.Now()
-	go func() {
+
+	{
+		lastSendTime := time.Now()
 		for {
 			//update metrics
 			time.Sleep(time.Duration(Cfg.PollInterval) * time.Second)
@@ -65,7 +59,19 @@ func main() {
 				lastSendTime = time.Now()
 			}
 		}
-	}()
+	}
+}
+
+func main() {
+	logger, err := zap.NewDevelopment()
+	if err != nil {
+		panic(err)
+	}
+	log = logger
+	InitConfig()
+	log.Info("agent start", zap.Any("config", Cfg))
+	newClientResty()
+	go RequestMetric()
 	exit := make(chan os.Signal, 1)
 	signal.Notify(exit, os.Interrupt, syscall.SIGTERM)
 	// Ожидание сигнала завершения

@@ -9,7 +9,7 @@ import (
 	"github.com/hollgett/metricsYandex.git/internal/logger"
 )
 
-func setupRouters(h *api.APIMetric) *chi.Mux {
+func setupRouters(h *api.ApiMetric) *chi.Mux {
 	rtr := chi.NewMux()
 	rtr.Use(logger.RequestMiddleware)
 	rtr.Use(logger.ResponseMiddleware)
@@ -26,7 +26,7 @@ func setupRouters(h *api.APIMetric) *chi.Mux {
 	return rtr
 }
 
-func NewServer(h *api.APIMetric) *http.Server {
+func NewServer(h *api.ApiMetric) *http.Server {
 	r := setupRouters(h)
 	return &http.Server{
 		Addr:    config.Cfg.Addr,
