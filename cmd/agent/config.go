@@ -3,8 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
-	"strconv"
-	"strings"
+	"net/url"
 
 	"github.com/caarlos0/env/v11"
 )
@@ -15,10 +14,15 @@ type AgentArgs struct {
 	PollInterval   int    `env:"POLL_INTERVAL"`
 }
 
-func validatePort(addr string) error {
-	hp := strings.Split(addr, ":")
-	if _, err := strconv.Atoi(hp[1]); len(hp) != 2 || err != nil {
-		return fmt.Errorf("address must be in the format `:port`, got: %s", addr)
+var Cfg AgentArgs
+
+func validatePort(agentCfg *AgentArgs) error {
+	parsedURL, err := url.Parse(agentCfg.Addr)
+	if err != nil {
+		return fmt.Errorf("addr error: %w", err)
+	}
+	if parsedURL.Scheme != `http` {
+		agentCfg.Addr = `http://` + parsedURL.String()
 	}
 	return nil
 }
@@ -41,7 +45,7 @@ func initAgentCommand(agentConfig *AgentArgs) {
 
 }
 
-func InitConfig() *AgentArgs {
+func InitConfig() {
 	agentArgs := &AgentArgs{}
 	if err := env.Parse(agentArgs); err != nil {
 		panic(err)
@@ -49,9 +53,8 @@ func InitConfig() *AgentArgs {
 	if agentArgs.Addr == "" || agentArgs.ReportInterval == 0 || agentArgs.PollInterval == 0 {
 		initAgentCommand(agentArgs)
 	}
-	if err := validatePort(agentArgs.Addr); err != nil {
+	if err := validatePort(agentArgs); err != nil {
 		panic(err)
 	}
-
-	return agentArgs
+	Cfg = *agentArgs
 }

@@ -3,8 +3,7 @@ package config
 import (
 	"flag"
 	"fmt"
-	"strconv"
-	"strings"
+	"net/url"
 
 	"github.com/caarlos0/env/v11"
 )
@@ -15,16 +14,20 @@ type CommandAddr struct {
 
 var Cfg = CommandAddr{}
 
-func validatePort(addr string) error {
-	hp := strings.Split(addr, ":")
-	if _, err := strconv.Atoi(hp[1]); len(hp) != 2 || err != nil {
-		return fmt.Errorf("address must be in the format `:port`, got: %s", addr)
+func validatePort(serverCfg *CommandAddr) error {
+	parsedURL, err := url.Parse(serverCfg.Addr)
+	if err != nil {
+		return fmt.Errorf("addr error: %w", err)
+	}
+	if parsedURL.Scheme == `http` {
+		parsedURL.Scheme = ""
+		serverCfg.Addr = parsedURL.Host
 	}
 	return nil
 }
 
 func InitConfig() error {
-	addr := flag.String("a", ":8080", "setup server address host:port")
+	addr := flag.String("a", "localhost:8080", "setup server address host:port")
 	commandAddr := &CommandAddr{}
 	if err := env.Parse(commandAddr); err != nil {
 		return err
@@ -35,7 +38,7 @@ func InitConfig() error {
 		commandAddr.Addr = *addr
 	}
 
-	if err := validatePort(commandAddr.Addr); err != nil {
+	if err := validatePort(commandAddr); err != nil {
 		return err
 	}
 
