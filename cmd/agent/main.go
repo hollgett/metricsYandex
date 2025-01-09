@@ -23,8 +23,7 @@ func newClientResty() {
 		SetBaseURL(Cfg.Addr).
 		SetHeader("Content-Type", "application/json").
 		SetRetryCount(3).
-		SetRetryWaitTime(2 * time.Second).
-		SetDebug(true)
+		SetRetryWaitTime(2 * time.Second)
 }
 
 func clientPost(metric Metrics) (*resty.Response, error) {

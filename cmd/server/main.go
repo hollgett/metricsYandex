@@ -21,7 +21,7 @@ func main() {
 	logger.LogInfo("server start", zap.Any("cfg", config.Cfg))
 	memStorage := storage.NewMemStorage()
 	handlers := handlers.NewMetricHandler(memStorage)
-	api := api.NewApiMetric(handlers)
+	api := api.NewAPIMetric(handlers)
 	server := server.NewServer(api)
 	if err := server.ListenAndServe(); err != nil {
 		panic(err.Error())

@@ -17,7 +17,7 @@ import (
 )
 
 func testRouter(h handlers.MetricHandler) chi.Router {
-	api := NewApiMetric(h)
+	api := NewAPIMetric(h)
 	rtr := chi.NewMux()
 	rtr.Get("/", api.GetMetricAll)
 	rtr.Route("/value", func(r chi.Router) {

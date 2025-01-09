@@ -16,15 +16,15 @@ const (
 	textT string = "text/plain"
 )
 
-type ApiMetric struct {
+type APIMetric struct {
 	handler handlers.MetricHandler
 }
 
-func NewApiMetric(h handlers.MetricHandler) *ApiMetric {
-	return &ApiMetric{handler: h}
+func NewAPIMetric(h handlers.MetricHandler) *APIMetric {
+	return &APIMetric{handler: h}
 }
 
-func (a *ApiMetric) UpdateMetricPlainText(w http.ResponseWriter, r *http.Request) {
+func (a *APIMetric) UpdateMetricPlainText(w http.ResponseWriter, r *http.Request) {
 	metrics := models.Metrics{
 		ID:    chi.URLParam(r, "nameM"),
 		MType: chi.URLParam(r, "typeM"),
@@ -47,7 +47,7 @@ func (a *ApiMetric) UpdateMetricPlainText(w http.ResponseWriter, r *http.Request
 	w.WriteHeader(http.StatusOK)
 }
 
-func (a *ApiMetric) UpdateMetricJSON(w http.ResponseWriter, r *http.Request) {
+func (a *APIMetric) UpdateMetricJSON(w http.ResponseWriter, r *http.Request) {
 	metrics := models.Metrics{}
 	if err := jsonutil.DecoderJSON(r.Body, &metrics); err != nil {
 		RespondWithError(w, http.StatusBadRequest, "decode json", err.Error())
@@ -69,7 +69,7 @@ func (a *ApiMetric) UpdateMetricJSON(w http.ResponseWriter, r *http.Request) {
 	RespondWithSuccess(w, jsonT, http.StatusOK, metrics)
 }
 
-func (a *ApiMetric) GetMetricPlainText(w http.ResponseWriter, r *http.Request) {
+func (a *APIMetric) GetMetricPlainText(w http.ResponseWriter, r *http.Request) {
 	metrics := models.Metrics{
 		ID:    chi.URLParam(r, "nameM"),
 		MType: chi.URLParam(r, "typeM"),
@@ -88,7 +88,7 @@ func (a *ApiMetric) GetMetricPlainText(w http.ResponseWriter, r *http.Request) {
 	RespondWithSuccess(w, textT, http.StatusOK, metrics)
 }
 
-func (a *ApiMetric) GetMetricJSON(w http.ResponseWriter, r *http.Request) {
+func (a *APIMetric) GetMetricJSON(w http.ResponseWriter, r *http.Request) {
 	var metrics models.Metrics
 
 	if err := jsonutil.DecoderJSON(r.Body, &metrics); err != nil {
@@ -109,7 +109,7 @@ func (a *ApiMetric) GetMetricJSON(w http.ResponseWriter, r *http.Request) {
 	RespondWithSuccess(w, jsonT, http.StatusOK, metrics)
 }
 
-func (a *ApiMetric) GetMetricAll(w http.ResponseWriter, r *http.Request) {
+func (a *APIMetric) GetMetricAll(w http.ResponseWriter, r *http.Request) {
 	body, err := a.handler.GetMetricAll()
 	if err != nil {
 		RespondWithError(w, http.StatusBadRequest, "GetMetricAll", err.Error())
