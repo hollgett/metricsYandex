@@ -5,74 +5,114 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/hollgett/metricsYandex.git/internal/handlers"
+	"github.com/hollgett/metricsYandex.git/internal/jsonutil"
+	"github.com/hollgett/metricsYandex.git/internal/logger"
+	"github.com/hollgett/metricsYandex.git/internal/models"
+	"go.uber.org/zap"
 )
 
-type ApiMetric struct {
+const (
+	jsonT string = "application/json"
+	textT string = "text/plain"
+)
+
+type APIMetric struct {
 	handler handlers.MetricHandler
 }
 
-func NewApiMetric(h handlers.MetricHandler) *ApiMetric {
-	return &ApiMetric{handler: h}
+func NewAPIMetric(h handlers.MetricHandler) *APIMetric {
+	return &APIMetric{handler: h}
 }
 
-func validRequest(typeM, nameM string) (int, bool) {
-	if typeM != "counter" && typeM != "gauge" {
-		return http.StatusBadRequest, false
+func (a *APIMetric) UpdateMetricPlainText(w http.ResponseWriter, r *http.Request) {
+	metrics := models.Metrics{
+		ID:    chi.URLParam(r, "nameM"),
+		MType: chi.URLParam(r, "typeM"),
 	}
-	if len(nameM) == 0 {
-		return http.StatusNotFound, false
-	}
-	return 0, true
-}
-
-func (a *ApiMetric) ContentTypeMiddleware(expectedType ...string) func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			contT := r.Header.Get("Content-Type")
-			for _, v := range expectedType {
-				if contT == v {
-					next.ServeHTTP(w, r)
-					return
-				}
-			}
-			http.Error(w, "request content type unsupported", http.StatusUnsupportedMediaType)
-		})
-	}
-}
-func (a *ApiMetric) UpdateMetricPost(w http.ResponseWriter, r *http.Request) {
-	requestParam := []string{chi.URLParam(r, "typeM"), chi.URLParam(r, "nameM"), chi.URLParam(r, "valueM")}
-	if statusCode, ok := validRequest(requestParam[0], requestParam[1]); !ok {
-		w.WriteHeader(statusCode)
+	logger.LogInfo("UpdateMetricPlainText start", zap.Any("value", metrics), zap.String("content type", r.Header.Get("Content-Type")))
+	if err := handlers.ValidateTypeMetric(metrics.MType); err != nil {
+		RespondWithError(w, http.StatusBadRequest, "ValidateTypeMetric plain text", err.Error())
 		return
 	}
-	err := a.handler.CollectingMetric(requestParam)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	if err := handlers.ValidateNameMetric(metrics.ID); err != nil {
+		RespondWithError(w, http.StatusNotFound, "ValidateNameMetric plain text", err.Error())
+		return
+	}
+	ConvMetricVal(&metrics, chi.URLParam(r, "valueM"), w)
+
+	if err := a.handler.CollectingMetric(&metrics); err != nil {
+		RespondWithError(w, http.StatusBadRequest, "CollectingMetric plain text", err.Error())
 		return
 	}
 	w.WriteHeader(http.StatusOK)
 }
 
-func (a *ApiMetric) GetMetric(w http.ResponseWriter, r *http.Request) {
-	requestParam := []string{chi.URLParam(r, "typeM"), chi.URLParam(r, "nameM")}
-	if statusCode, ok := validRequest(requestParam[0], requestParam[1]); !ok {
-		w.WriteHeader(statusCode)
+func (a *APIMetric) UpdateMetricJSON(w http.ResponseWriter, r *http.Request) {
+	metrics := models.Metrics{}
+	if err := jsonutil.DecoderJSON(r.Body, &metrics); err != nil {
+		RespondWithError(w, http.StatusBadRequest, "decode json", err.Error())
 		return
 	}
-	result, err := a.handler.GetMetric(requestParam)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
+	logger.LogInfo("UpdateMetricPostJson start", zap.Any("value", metrics), zap.String("content type", r.Header.Get("Content-Type")))
+	if err := handlers.ValidateTypeMetric(metrics.MType); err != nil {
+		RespondWithError(w, http.StatusBadRequest, "ValidateTypeMetric json", err.Error())
 		return
 	}
-	w.Header().Set("Content-Type", "text/plain")
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(result))
+	if err := handlers.ValidateNameMetric(metrics.ID); err != nil {
+		RespondWithError(w, http.StatusNotFound, "ValidateNameMetric json", err.Error())
+		return
+	}
+	if err := a.handler.CollectingMetric(&metrics); err != nil {
+		RespondWithError(w, http.StatusBadRequest, "CollectingMetric json", err.Error())
+		return
+	}
+	RespondWithSuccess(w, jsonT, http.StatusOK, metrics)
 }
 
-func (a *ApiMetric) GetMetricAll(w http.ResponseWriter, r *http.Request) {
+func (a *APIMetric) GetMetricPlainText(w http.ResponseWriter, r *http.Request) {
+	metrics := models.Metrics{
+		ID:    chi.URLParam(r, "nameM"),
+		MType: chi.URLParam(r, "typeM"),
+	}
+	logger.LogInfo("getMetricPlainText start", zap.Any("request param take", metrics))
+
+	if err := handlers.ValidateTypeMetric(metrics.MType); err != nil {
+		RespondWithError(w, http.StatusBadRequest, "getMetricPlainText: ValidateTypeMetric error", err.Error())
+		return
+	}
+
+	if err := a.handler.GetMetric(&metrics); err != nil {
+		RespondWithError(w, http.StatusNotFound, "getMetricJSON: GetMetric service error", err.Error())
+		return
+	}
+	RespondWithSuccess(w, textT, http.StatusOK, metrics)
+}
+
+func (a *APIMetric) GetMetricJSON(w http.ResponseWriter, r *http.Request) {
+	var metrics models.Metrics
+
+	if err := jsonutil.DecoderJSON(r.Body, &metrics); err != nil {
+		RespondWithError(w, http.StatusBadRequest, "getMetricJSON decode error", err.Error())
+		return
+	}
+	logger.LogInfo("getMetricJSON start", zap.Any("request param take", metrics), zap.String("content type", r.Header.Get("Content-Type")))
+
+	if err := handlers.ValidateTypeMetric(metrics.MType); err != nil {
+		RespondWithError(w, http.StatusBadRequest, "getMetricJSON: ValidateTypeMetric error", err.Error())
+		return
+	}
+
+	if err := a.handler.GetMetric(&metrics); err != nil {
+		RespondWithError(w, http.StatusNotFound, "getMetricJSON: GetMetric service error", err.Error())
+		return
+	}
+	RespondWithSuccess(w, jsonT, http.StatusOK, metrics)
+}
+
+func (a *APIMetric) GetMetricAll(w http.ResponseWriter, r *http.Request) {
 	body, err := a.handler.GetMetricAll()
 	if err != nil {
-		http.Error(w, "error get metric: "+err.Error(), http.StatusBadRequest)
+		RespondWithError(w, http.StatusBadRequest, "GetMetricAll", err.Error())
 		return
 	}
 	w.WriteHeader(http.StatusOK)

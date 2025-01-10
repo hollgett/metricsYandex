@@ -2,125 +2,79 @@ package main
 
 import (
 	"fmt"
-	"math/rand"
+	"os"
+	"os/signal"
 	"runtime"
+	"syscall"
 	"time"
 
 	"github.com/go-resty/resty/v2"
+	"go.uber.org/zap"
 )
-
-func init() {
-	cfg = InitAgentCommand()
-}
-
-type gauge float64
-type counter int64
 
 var (
-	cfg            *AgentArgs
-	pollInterval   time.Duration
-	reportInterval time.Duration
+	clientOnce *resty.Client
+	log        *zap.Logger
+	memStats   runtime.MemStats
 )
 
-var clientOnce *resty.Client
-
-func newClientResty() *resty.Client {
+func newClientResty() {
 	clientOnce = resty.New().
-		SetBaseURL("http://"+cfg.Addr).
-		SetHeader("Content-Type", "text/plain")
-
-	return clientOnce
+		SetBaseURL(Cfg.Addr).
+		SetHeader("Content-Type", "application/json").
+		SetRetryCount(3).
+		SetRetryWaitTime(2 * time.Second)
 }
 
-type metrics struct {
-	PollCount counter
-	metrics   map[string]gauge
-}
-
-func randomValue() gauge {
-	return gauge(rand.Intn(1000))
-}
-
-func (m *metrics) updateMetrics() {
-	var memStats runtime.MemStats
-	runtime.ReadMemStats(&memStats)
-	m.PollCount++
-	m.metrics["RandomValue"] = randomValue()
-	m.metrics["BuckHashSys"] = gauge(memStats.BuckHashSys)
-	m.metrics["Alloc"] = gauge(memStats.Alloc)
-	m.metrics["Frees"] = gauge(memStats.Frees)
-	m.metrics["GCCPUFraction"] = gauge(memStats.GCCPUFraction)
-	m.metrics["GCSys"] = gauge(memStats.GCSys)
-	m.metrics["HeapAlloc"] = gauge(memStats.HeapAlloc)
-	m.metrics["HeapIdle"] = gauge(memStats.HeapIdle)
-	m.metrics["HeapInuse"] = gauge(memStats.HeapInuse)
-	m.metrics["HeapObjects"] = gauge(memStats.HeapObjects)
-	m.metrics["HeapReleased"] = gauge(memStats.HeapReleased)
-	m.metrics["HeapSys"] = gauge(memStats.HeapSys)
-	m.metrics["LastGC"] = gauge(memStats.LastGC)
-	m.metrics["Lookups"] = gauge(memStats.Lookups)
-	m.metrics["MCacheInuse"] = gauge(memStats.MCacheInuse)
-	m.metrics["MCacheSys"] = gauge(memStats.MCacheSys)
-	m.metrics["MSpanInuse"] = gauge(memStats.MSpanInuse)
-	m.metrics["MSpanSys"] = gauge(memStats.MSpanSys)
-	m.metrics["Mallocs"] = gauge(memStats.Mallocs)
-	m.metrics["NextGC"] = gauge(memStats.NextGC)
-	m.metrics["NumForcedGC"] = gauge(memStats.NumForcedGC)
-	m.metrics["NumGC"] = gauge(memStats.NumGC)
-	m.metrics["OtherSys"] = gauge(memStats.OtherSys)
-	m.metrics["PauseTotalNs"] = gauge(memStats.PauseTotalNs)
-	m.metrics["StackInuse"] = gauge(memStats.StackInuse)
-	m.metrics["StackSys"] = gauge(memStats.StackSys)
-	m.metrics["Sys"] = gauge(memStats.Sys)
-	m.metrics["TotalAlloc"] = gauge(memStats.TotalAlloc)
-}
-
-func (m metrics) sendMetrics() error {
-	clientOnce = newClientResty()
-	fmt.Printf("send metrics PollCounter: %v\n", m.PollCount)
-	resp, err := clientOnce.R().Post(fmt.Sprintf("/update/counter/PollCount/%v", m.PollCount))
+func clientPost(metric Metrics) (*resty.Response, error) {
+	data, err := Marshal(metric)
 	if err != nil {
-		if resp.Body() != nil {
-			return fmt.Errorf("error with request to server. \r\n\terror:%w\r\n\tresponse body: %v", err, resp.String())
-		}
-		return fmt.Errorf("error with request to server. \r\n\terror:%w", err)
+		return nil, fmt.Errorf("encode json: %w", err)
 	}
-	fmt.Println(resp.StatusCode())
-	for i, v := range m.metrics {
-		resp, err := clientOnce.R().Post(fmt.Sprintf("/update/gauge/%s/%v", i, v))
-		if err != nil {
-			if resp.Body() != nil {
-				return fmt.Errorf("error with request to server. \r\n\terror:%w\r\n\tresponse body: %v", err, resp.String())
+	return clientOnce.R().
+		SetBody(data).
+		Post("/update/")
+}
+
+func RequestMetric() {
+	currentMetrics := metrics{
+		PollCount: 0,
+		metrics:   make(map[string]float64),
+	}
+
+	{
+		lastSendTime := time.Now()
+		for {
+			//update metrics
+			time.Sleep(time.Duration(Cfg.PollInterval) * time.Second)
+			currentMetrics.updateMetrics()
+
+			//send metrics
+			if time.Since(lastSendTime) >= time.Duration(Cfg.ReportInterval)*time.Second {
+				if err := currentMetrics.sendMetricsJSON(); err != nil {
+					fmt.Println("error catch: ", err)
+					return
+				}
+				lastSendTime = time.Now()
 			}
-			return fmt.Errorf("error with request to server. \r\n\terror:%w", err)
 		}
-		fmt.Println(resp.StatusCode())
 	}
-	return nil
 }
 
 func main() {
-	fmt.Println(cfg)
-	pollInterval = time.Duration(cfg.PollInterval) * time.Second
-	reportInterval = time.Duration(cfg.ReportInterval) * time.Second
-	currentMetrics := metrics{
-		PollCount: 0,
-		metrics:   make(map[string]gauge),
+	logger, err := zap.NewDevelopment()
+	if err != nil {
+		panic(err)
 	}
-	lastSendTime := time.Now()
-	for {
-		//update metrics
-		time.Sleep(pollInterval)
-		currentMetrics.updateMetrics()
-
-		//send metrics
-		if time.Since(lastSendTime) >= reportInterval {
-			err := currentMetrics.sendMetrics()
-			if err != nil {
-				fmt.Println(err)
-				return
-			}
-			lastSendTime = time.Now()
-		}
-	}
+	log = logger
+	InitConfig()
+	log.Info("agent start", zap.Any("config", Cfg))
+	newClientResty()
+	go RequestMetric()
+	exit := make(chan os.Signal, 1)
+	signal.Notify(exit, os.Interrupt, syscall.SIGTERM)
+	// Ожидание сигнала завершения
+	sig := <-exit
+	log.Info("signal exit", zap.Any("value", sig))
+	fmt.Scan()
 }
