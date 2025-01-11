@@ -21,15 +21,21 @@ var (
 func newClientResty() {
 	clientOnce = resty.New().
 		SetBaseURL(Cfg.Addr).
-		SetHeader("Content-Type", "application/json").
+		SetHeader("Content-Encoding", "gzip").
+		// SetHeader("Content-Type", "application/json").
 		SetRetryCount(3).
-		SetRetryWaitTime(2 * time.Second)
+		SetRetryWaitTime(2 * time.Second).
+		SetDebug(true)
 }
 
 func clientPost(metric Metrics) (*resty.Response, error) {
 	data, err := Marshal(metric)
 	if err != nil {
 		return nil, fmt.Errorf("encode json: %w", err)
+	}
+	data, err = compressData(data)
+	if err != nil {
+		return nil, fmt.Errorf("compress: %w", err)
 	}
 	return clientOnce.R().
 		SetBody(data).
@@ -48,7 +54,6 @@ func RequestMetric() {
 			//update metrics
 			time.Sleep(time.Duration(Cfg.PollInterval) * time.Second)
 			currentMetrics.updateMetrics()
-
 			//send metrics
 			if time.Since(lastSendTime) >= time.Duration(Cfg.ReportInterval)*time.Second {
 				if err := currentMetrics.sendMetricsJSON(); err != nil {

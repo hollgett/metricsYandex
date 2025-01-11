@@ -11,9 +11,11 @@ import (
 
 func setupRouters(h *api.APIMetric) *chi.Mux {
 	rtr := chi.NewMux()
-	rtr.Use(logger.RequestMiddleware)
-	rtr.Use(logger.ResponseMiddleware)
-	rtr.Use(api.ContentTypeMiddleware("text/plain", "", "application/json"))
+	rtr.Use(logger.RequestMiddleware,
+		logger.ResponseMiddleware,
+		api.CompressMiddleware,
+		api.ContentTypeMiddleware("text/plain", "", "application/json", "application/x-gzip"),
+	)
 	rtr.Get("/", h.GetMetricAll)
 	rtr.Route("/value", func(r chi.Router) {
 		r.Get("/{typeM}/{nameM}", h.GetMetricPlainText)
