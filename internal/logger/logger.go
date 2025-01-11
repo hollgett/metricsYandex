@@ -57,21 +57,12 @@ func LogInfo(logMess string, v ...zap.Field) {
 func RequestMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
-		Log.Info(
-			"Request start",
-			zap.String("uri", r.RequestURI),
-			zap.String("method", r.Method),
-		)
+		LogInfo("Request start", zap.String("uri", r.RequestURI), zap.String("method", r.Method))
 
 		next.ServeHTTP(w, r)
 		duration := time.Since(start)
+		LogInfo("Request complete", zap.String("uri", r.RequestURI), zap.String("method", r.Method), zap.Duration("duration", duration))
 
-		Log.Info(
-			"Request complete",
-			zap.String("uri", r.RequestURI),
-			zap.String("method", r.Method),
-			zap.Duration("duration", duration),
-		)
 	})
 }
 
@@ -85,12 +76,7 @@ func ResponseMiddleware(next http.Handler) http.Handler {
 		}
 
 		next.ServeHTTP(&lr, r)
-
-		Log.Info(
-			"Response data",
-			zap.Int("status", responseData.status),
-			zap.Int("size", responseData.size),
-		)
+		LogInfo("Response data", zap.Int("status", responseData.status), zap.Int("size", responseData.size))
 	}
 
 	return http.HandlerFunc(fn)
