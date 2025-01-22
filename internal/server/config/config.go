@@ -16,7 +16,7 @@ var Config struct {
 func InitConfig() error {
 	flag.StringVar(&Config.Addr, "a", "localhost:8080", "server")
 	flag.IntVar(&Config.StorageInterval, "i", 300, "storage pull interval")
-	flag.StringVar(&Config.PathFileStorage, "f", "tmp/metrics-db.json", "path to temp file")
+	flag.StringVar(&Config.PathFileStorage, "f", "", "path to temp file")
 	flag.BoolVar(&Config.Restore, "r", true, "flag, load old save data")
 	flag.Parse()
 	if err := env.Parse(&Config); err != nil {

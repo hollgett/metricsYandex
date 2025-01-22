@@ -10,7 +10,7 @@ import (
 )
 
 func Test_fileStorage_Update(t *testing.T) {
-	var gauge float64 = 54.3
+	var gauge = 54.3
 	var counter int64 = 43
 	data := []models.Metrics{
 		{
@@ -47,7 +47,7 @@ func Test_fileStorage_Update(t *testing.T) {
 }
 
 func Test_fileStorage_Load(t *testing.T) {
-	var gauge float64 = 54.3
+	var gauge = 54.3
 	var counter int64 = 43
 	expected := []models.Metrics{
 		{
