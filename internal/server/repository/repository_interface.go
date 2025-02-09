@@ -1,7 +1,7 @@
 package repository
 
 import (
-	"net/http"
+	"context"
 
 	"github.com/hollgett/metricsYandex.git/internal/server/models"
 )
@@ -11,7 +11,6 @@ type Repository interface {
 	Save(data models.Metrics) error
 	Get(metric *models.Metrics) error
 	GetAll() ([]models.Metrics, error)
+	Ping(ctx context.Context) error
 	Close() error
-	UpdateSyncMiddleware(next http.Handler) http.Handler
-	UpdateTicker(interval int, done chan bool)
 }

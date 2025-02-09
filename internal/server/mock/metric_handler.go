@@ -5,6 +5,7 @@
 package mock
 
 import (
+	context "context"
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
@@ -75,4 +76,33 @@ func (m *MockMetricHandler) GetMetricAll() (string, error) {
 func (mr *MockMetricHandlerMockRecorder) GetMetricAll() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMetricAll", reflect.TypeOf((*MockMetricHandler)(nil).GetMetricAll))
+}
+
+// PingDB mocks base method.
+func (m *MockMetricHandler) PingDB(ctx context.Context) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PingDB", ctx)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// PingDB indicates an expected call of PingDB.
+func (mr *MockMetricHandlerMockRecorder) PingDB(ctx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PingDB", reflect.TypeOf((*MockMetricHandler)(nil).PingDB), ctx)
+}
+
+// ValidateMetric mocks base method.
+func (m *MockMetricHandler) ValidateMetric(metric *models.Metrics) (int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ValidateMetric", metric)
+	ret0, _ := ret[0].(int)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ValidateMetric indicates an expected call of ValidateMetric.
+func (mr *MockMetricHandlerMockRecorder) ValidateMetric(metric interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ValidateMetric", reflect.TypeOf((*MockMetricHandler)(nil).ValidateMetric), metric)
 }

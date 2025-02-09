@@ -4,7 +4,9 @@ import (
 	"os"
 	"testing"
 
+	"github.com/hollgett/metricsYandex.git/internal/server/logger"
 	"github.com/hollgett/metricsYandex.git/internal/server/models"
+	"github.com/hollgett/metricsYandex.git/internal/server/repository/memory"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -32,10 +34,13 @@ func Test_fileStorage_Update(t *testing.T) {
 	tempfile.Close()
 	defer os.RemoveAll(tempfile.Name())
 
-	fs, err := NewFileStorage(tempfile.Name())
-	require.NoError(t, err, "create file storage error")
-
-	err = fs.Update(data)
+	file, err := os.OpenFile(tempfile.Name(), os.O_RDWR|os.O_CREATE, 0666)
+	require.NoError(t, err, "open temp file")
+	fs := &FileStorage{
+		file:       file,
+		Repository: memory.New(),
+	}
+	err = fs.update(data)
 	require.NoError(t, err, "update data error")
 
 	got, err := os.ReadFile(tempfile.Name())
@@ -46,7 +51,7 @@ func Test_fileStorage_Update(t *testing.T) {
 	require.NoError(t, err, "close file storage error")
 }
 
-func Test_fileStorage_Load(t *testing.T) {
+func Test_fileStorage_Restore(t *testing.T) {
 	var gauge = 54.3
 	var counter int64 = 43
 	expected := []models.Metrics{
@@ -71,15 +76,26 @@ func Test_fileStorage_Load(t *testing.T) {
 	require.NoError(t, err, "close temp file error")
 	defer os.Remove(fileTemp.Name())
 
-	fs, err := NewFileStorage(fileTemp.Name())
-
+	file, err := os.OpenFile(fileTemp.Name(), os.O_RDWR|os.O_CREATE, 0666)
+	require.NoError(t, err, "open temp file")
+	log, err := logger.New()
+	require.NoError(t, err, "logger create")
+	fs := &FileStorage{
+		file:       file,
+		Repository: memory.New(),
+		Logger:     log,
+	}
 	require.NoError(t, err, "create file storage error")
 
-	loadData, err := fs.Load()
-	require.NoError(t, err, "load file storage error")
-	assert.Equal(t, expected, loadData, "not equal data")
+	defer func() {
+		err = fs.Close()
+		require.NoError(t, err, "close file storage error")
+	}()
 
-	err = fs.Close()
-	require.NoError(t, err, "close file storage error")
+	err = fs.restore()
+	require.NoError(t, err, "load file storage error")
+	dataGet, err := fs.GetAll()
+	require.NoError(t, err, "get data storage error")
+	assert.Equal(t, expected, dataGet, "not equal data")
 
 }

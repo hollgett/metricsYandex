@@ -1,6 +1,8 @@
 package api
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -20,8 +22,6 @@ func NewClientResty(header, value string, debug bool) *Client {
 	client := resty.New().
 		SetBaseURL(`http://`+config.AgentConfig.Addr).
 		SetHeader(header, value).
-		SetRetryCount(3).
-		SetRetryWaitTime(2 * time.Second).
 		SetDebug(debug)
 	return &Client{
 		Client: client,
@@ -43,13 +43,34 @@ func (c *Client) request(metric models.Metrics) (*resty.Response, error) {
 		Post(`/update/`)
 }
 
-func (c *Client) SendMetricsJSON(dataMetric []models.Metrics) error {
+func (c *Client) SendMetricsJSON(ctx context.Context, dataMetric []models.Metrics, retryCount int, t time.Duration) error {
+	ctxSend, cancel := context.WithCancel(ctx)
+	defer cancel()
 	for _, metric := range dataMetric {
-		resp, err := c.request(metric)
-		if err != nil {
-			return fmt.Errorf("request: %w", err)
+		if err := c.SendWithRetry(ctxSend, retryCount, t, metric); err != nil {
+			return err
 		}
-		logger.Log.Info("request", zap.Any("value", metric), zap.String("status", resp.Status()))
+	}
+	return nil
+}
+
+func (c *Client) SendWithRetry(ctx context.Context, retryCount int, t time.Duration, metric models.Metrics) error {
+	for i := 0; i <= retryCount; i++ {
+		resp, err := c.request(metric)
+		if err == nil && resp.IsSuccess() {
+			logger.Log.Info("request", zap.Any("value", metric), zap.String("status", resp.Status()))
+			break
+		}
+		select {
+		case <-time.After(t):
+			logger.Log.Info("request retry", zap.Error(err), zap.Int("count", i+1))
+		case <-ctx.Done():
+			logger.Log.Info("context cancel", zap.Error(ctx.Err()))
+			return err
+		}
+		if i == 2 {
+			return errors.New("limit retry exceeded")
+		}
 	}
 	return nil
 }

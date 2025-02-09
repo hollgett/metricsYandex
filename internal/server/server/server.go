@@ -5,24 +5,19 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/hollgett/metricsYandex.git/internal/server/api"
-	"github.com/hollgett/metricsYandex.git/internal/server/config"
 	"github.com/hollgett/metricsYandex.git/internal/server/logger"
-	"github.com/hollgett/metricsYandex.git/internal/server/repository"
 )
 
-func setupRouters(h *api.APIMetric, repo repository.Repository) *chi.Mux {
+func setupRouters(h *api.APIMetric, log logger.Logger) *chi.Mux {
 	rtr := chi.NewMux()
 
-	rtr.Use(logger.RequestMiddleware,
-		logger.ResponseMiddleware,
+	rtr.Use(log.RequestMiddleware,
+		log.ResponseMiddleware,
 		api.CompressMiddleware,
 		api.ContentTypeMiddleware("text/plain", "", "application/json", "application/x-gzip"),
 	)
-	if config.Config.StorageInterval == 0 {
-		rtr.Use(repo.UpdateSyncMiddleware)
-	}
-
 	rtr.Get("/", h.GetMetricAll)
+	rtr.Get("/ping", h.Ping)
 	rtr.Route("/value", func(r chi.Router) {
 		r.Get("/{typeM}/{nameM}", h.GetMetricPlainText)
 		r.Post("/", h.GetMetricJSON)
@@ -35,10 +30,10 @@ func setupRouters(h *api.APIMetric, repo repository.Repository) *chi.Mux {
 	return rtr
 }
 
-func NewServer(h *api.APIMetric, repo repository.Repository) *http.Server {
-	r := setupRouters(h, repo)
+func New(h *api.APIMetric, log logger.Logger, addr string) *http.Server {
+	r := setupRouters(h, log)
 	return &http.Server{
-		Addr:    config.Config.Addr,
+		Addr:    addr,
 		Handler: r,
 	}
 }

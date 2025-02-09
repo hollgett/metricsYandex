@@ -25,7 +25,7 @@ func TestMemStorage_SetGauge(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := tt.ms.SetGauge(tt.nameV, tt.value); err != nil {
+			if err := tt.ms.setGauge(tt.nameV, tt.value); err != nil {
 				assert.EqualError(t, err, tt.err, "error not equal")
 			} else {
 				assert.Contains(t, tt.ms.gauge, tt.nameV, "value does't exists")
@@ -60,7 +60,7 @@ func TestMemStorage_GetGauge(t *testing.T) {
 			if tt.err == "" {
 				tt.ms.gauge[tt.nameV] = tt.want
 			}
-			got, err := tt.ms.GetGauge(tt.nameV)
+			got, err := tt.ms.getGauge(tt.nameV)
 			if err != nil {
 				assert.EqualError(t, err, tt.err, "error not equal")
 			} else {
@@ -89,7 +89,7 @@ func TestMemStorage_AddCounter(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := tt.ms.AddCounter(tt.nameV, tt.value); err != nil {
+			if err := tt.ms.addCounter(tt.nameV, tt.value); err != nil {
 				assert.EqualError(t, err, tt.err, "error not equal")
 			} else {
 				assert.Contains(t, tt.ms.counter, tt.nameV, "value does't exists")
@@ -124,7 +124,7 @@ func TestMemStorage_GetCounter(t *testing.T) {
 			if tt.err == "" {
 				tt.ms.counter[tt.nameV] = tt.want
 			}
-			got, err := tt.ms.GetCounter(tt.nameV)
+			got, err := tt.ms.getCounter(tt.nameV)
 			if err != nil {
 				assert.EqualError(t, err, tt.err, "error not equal")
 			} else {

@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/hollgett/metricsYandex.git/internal/server/models"
@@ -16,7 +17,7 @@ type metricHandler struct {
 	repo repository.Repository
 }
 
-func NewMetricHandler(repo repository.Repository) MetricHandler {
+func New(repo repository.Repository) MetricHandler {
 	return &metricHandler{repo: repo}
 }
 
@@ -63,7 +64,12 @@ func (m *metricHandler) GetMetricAll() (string, error) {
 		case counter:
 			body += fmt.Sprintf(`<tr><td>%v</td><td>%v</td></tr><br>`, v.ID, *v.Delta)
 		}
+
 	}
 	bodyBottom := `</table>`
 	return fmt.Sprint(bodyHead, body, bodyBottom), nil
+}
+
+func (m *metricHandler) PingDB(ctx context.Context) error {
+	return m.repo.Ping(ctx)
 }

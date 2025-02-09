@@ -1,7 +1,8 @@
 package main
 
 import (
-	"fmt"
+	"context"
+	"log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -14,11 +15,11 @@ import (
 	"go.uber.org/zap"
 )
 
-func RequestMetric(mem *service.Metrics, client *api.Client, done chan bool) error {
+func RequestMetric(mem *service.Metrics, client *api.Client, ctx context.Context, cancel context.CancelFunc) error {
 	lastSendTime := time.Now()
 	for {
 		select {
-		case <-done:
+		case <-ctx.Done():
 			return nil
 		default:
 			//update metrics
@@ -27,9 +28,9 @@ func RequestMetric(mem *service.Metrics, client *api.Client, done chan bool) err
 			//send metrics
 			if time.Since(lastSendTime) >= time.Duration(config.AgentConfig.ReportInterval)*time.Second {
 				data := mem.GetMetric()
-				if err := client.SendMetricsJSON(data); err != nil {
-					done <- true
-					return err
+				if err := client.SendMetricsJSON(ctx, data, 2, 1*time.Second); err != nil {
+					logger.Log.Info("send metric", zap.Error(err))
+					cancel()
 				}
 				lastSendTime = time.Now()
 			}
@@ -39,34 +40,35 @@ func RequestMetric(mem *service.Metrics, client *api.Client, done chan bool) err
 }
 
 func main() {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go handlerShutDown(cancel)
 	if err := logger.InitLogger(); err != nil {
-		panic(err)
+		log.Fatalf("init logger: %v", err)
+		cancel()
 	}
 
 	if err := config.InitConfig(); err != nil {
-		logger.Log.Info("config init", zap.Error(err))
-		panic(err)
+		log.Fatalf("init config: %v", err)
+		cancel()
 	}
-	logger.Log.Info("config start", zap.Any("value", config.AgentConfig))
-
-	exit := make(chan os.Signal, 1)
-	signal.Notify(exit, os.Interrupt, syscall.SIGTERM)
-	done := make(chan bool)
-	go func() {
-		sig := <-exit
-		logger.Log.Info("close app", zap.Any("signal", sig))
-		done <- true
-	}()
+	logger.Log.Info("agent config", zap.Any("value", config.AgentConfig))
 
 	memS := service.NewMemStorage()
 	client := api.NewClientResty("Content-Encoding", "gzip", false)
 	go func() {
-		if err := RequestMetric(memS, client, done); err != nil {
+		if err := RequestMetric(memS, client, ctx, cancel); err != nil {
 			logger.Log.Info("request metric", zap.Error(err))
-			done <- true
+			cancel()
 		}
 	}()
-	<-done
-	close(done)
-	fmt.Scanln()
+	<-ctx.Done()
+}
+
+func handlerShutDown(cancel context.CancelFunc) {
+	exit := make(chan os.Signal, 1)
+	signal.Notify(exit, os.Interrupt, syscall.SIGTERM)
+	sig := <-exit
+	logger.Log.Info("close app", zap.Any("signal", sig))
+	cancel()
 }

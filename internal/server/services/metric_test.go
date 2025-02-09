@@ -40,5 +40,5 @@ func Test_metricHandler_ValidateMetric(t *testing.T) {
 func repositoryMock(ctrl *gomock.Controller) MetricHandler {
 	controller := mock.NewMockRepository(ctrl)
 
-	return NewMetricHandler(controller)
+	return New(controller)
 }

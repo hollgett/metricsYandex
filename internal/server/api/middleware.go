@@ -2,6 +2,7 @@ package api
 
 import (
 	"compress/gzip"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -50,7 +51,8 @@ func CompressMiddleware(next http.Handler) http.Handler {
 		if strings.Contains(r.Header.Get("Content-Encoding"), "gzip") {
 			gReader, err := gzip.NewReader(r.Body)
 			if err != nil {
-				RespondWithError(w, http.StatusInternalServerError, "decompress", err)
+				w.WriteHeader(http.StatusInternalServerError)
+				fmt.Fprintf(w, "compress reader: %v", err)
 				return
 			}
 			aliasReqReader := &compressReader{
