@@ -31,12 +31,14 @@ func (l *loggingResponseWriter) WriteHeader(statusCode int) {
 	l.responseData.status = statusCode
 }
 
-var log *zap.Logger = zap.NewNop()
+type logger struct {
+	l *zap.Logger
+}
 
-func InitLogger() error {
+func New() (Logger, error) {
 	lvl, err := zap.ParseAtomicLevel("info")
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	cfg := zap.NewDevelopmentConfig()
@@ -44,33 +46,38 @@ func InitLogger() error {
 
 	lg, err := cfg.Build()
 	if err != nil {
-		return err
+		return nil, err
 	}
-	log = lg
-	return nil
+	return &logger{
+		l: lg,
+	}, nil
 }
 
-func LogAny(logMess, key string, v interface{}) {
-	log.Info(logMess, zap.Any(key, v))
+func (log *logger) LogAny(logMess, key string, v interface{}) {
+	log.l.Info(logMess, zap.Any(key, v))
 }
 
-func LogErr(logMess string, err error) {
-	log.Info(logMess, zap.Error(err))
+func (log *logger) LogMess(logMess string) {
+	log.l.Info(logMess)
 }
 
-func RequestMiddleware(next http.Handler) http.Handler {
+func (log *logger) LogErr(logMess string, err error) {
+	log.l.Info(logMess, zap.Error(err))
+}
+
+func (log *logger) RequestMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
-		log.Info("Request start", zap.String("uri", r.RequestURI), zap.String("method", r.Method))
+		log.l.Info("Request start", zap.String("uri", r.RequestURI), zap.String("method", r.Method))
 
 		next.ServeHTTP(w, r)
 		duration := time.Since(start)
-		log.Info("Request complete", zap.String("uri", r.RequestURI), zap.String("method", r.Method), zap.Duration("duration", duration))
+		log.l.Info("Request complete", zap.String("uri", r.RequestURI), zap.String("method", r.Method), zap.Duration("duration", duration))
 
 	})
 }
 
-func ResponseMiddleware(next http.Handler) http.Handler {
+func (log *logger) ResponseMiddleware(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		responseData := responseData{}
 
@@ -80,8 +87,13 @@ func ResponseMiddleware(next http.Handler) http.Handler {
 		}
 
 		next.ServeHTTP(&lr, r)
-		log.Info("Response data", zap.Int("status", responseData.status), zap.Int("size", responseData.size))
+		log.l.Info("Response data", zap.Int("status", responseData.status), zap.Int("size", responseData.size))
 	}
 
 	return http.HandlerFunc(fn)
+}
+
+func (log *logger) Flush() {
+	log.LogMess("log flush")
+	log.l.Sync()
 }

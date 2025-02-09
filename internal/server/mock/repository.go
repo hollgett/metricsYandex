@@ -5,7 +5,7 @@
 package mock
 
 import (
-	http "net/http"
+	context "context"
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
@@ -78,6 +78,20 @@ func (mr *MockRepositoryMockRecorder) GetAll() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAll", reflect.TypeOf((*MockRepository)(nil).GetAll))
 }
 
+// Ping mocks base method.
+func (m *MockRepository) Ping(ctx context.Context) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Ping", ctx)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Ping indicates an expected call of Ping.
+func (mr *MockRepositoryMockRecorder) Ping(ctx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Ping", reflect.TypeOf((*MockRepository)(nil).Ping), ctx)
+}
+
 // Save mocks base method.
 func (m *MockRepository) Save(data models.Metrics) error {
 	m.ctrl.T.Helper()
@@ -90,30 +104,4 @@ func (m *MockRepository) Save(data models.Metrics) error {
 func (mr *MockRepositoryMockRecorder) Save(data interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Save", reflect.TypeOf((*MockRepository)(nil).Save), data)
-}
-
-// UpdateSyncMiddleware mocks base method.
-func (m *MockRepository) UpdateSyncMiddleware(next http.Handler) http.Handler {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UpdateSyncMiddleware", next)
-	ret0, _ := ret[0].(http.Handler)
-	return ret0
-}
-
-// UpdateSyncMiddleware indicates an expected call of UpdateSyncMiddleware.
-func (mr *MockRepositoryMockRecorder) UpdateSyncMiddleware(next interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateSyncMiddleware", reflect.TypeOf((*MockRepository)(nil).UpdateSyncMiddleware), next)
-}
-
-// UpdateTicker mocks base method.
-func (m *MockRepository) UpdateTicker(interval int, done chan bool) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "UpdateTicker", interval, done)
-}
-
-// UpdateTicker indicates an expected call of UpdateTicker.
-func (mr *MockRepositoryMockRecorder) UpdateTicker(interval, done interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateTicker", reflect.TypeOf((*MockRepository)(nil).UpdateTicker), interval, done)
 }

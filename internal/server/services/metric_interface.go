@@ -1,6 +1,10 @@
 package services
 
-import "github.com/hollgett/metricsYandex.git/internal/server/models"
+import (
+	"context"
+
+	"github.com/hollgett/metricsYandex.git/internal/server/models"
+)
 
 //go:generate mockgen -source=metric_interface.go -destination=../mock/metric_handler.go -package=mock
 type MetricHandler interface {
@@ -8,4 +12,5 @@ type MetricHandler interface {
 	GetMetric(metrics *models.Metrics) error
 	GetMetricAll() (string, error)
 	ValidateMetric(metric *models.Metrics) (int, error)
+	PingDB(ctx context.Context) error
 }
