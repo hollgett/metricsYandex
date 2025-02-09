@@ -4,82 +4,69 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"runtime"
 	"syscall"
 	"time"
 
-	"github.com/go-resty/resty/v2"
+	"github.com/hollgett/metricsYandex.git/internal/agent/api"
+	"github.com/hollgett/metricsYandex.git/internal/agent/config"
+	"github.com/hollgett/metricsYandex.git/internal/agent/logger"
+	"github.com/hollgett/metricsYandex.git/internal/agent/service"
 	"go.uber.org/zap"
 )
 
-var (
-	clientOnce *resty.Client
-	log        *zap.Logger
-	memStats   runtime.MemStats
-)
-
-func newClientResty() {
-	clientOnce = resty.New().
-		SetBaseURL(Cfg.Addr).
-		SetHeader("Content-Encoding", "gzip").
-		// SetHeader("Content-Type", "application/json").
-		SetRetryCount(3).
-		SetRetryWaitTime(2 * time.Second).
-		SetDebug(true)
-}
-
-func clientPost(metric Metrics) (*resty.Response, error) {
-	data, err := Marshal(metric)
-	if err != nil {
-		return nil, fmt.Errorf("encode json: %w", err)
-	}
-	data, err = compressData(data)
-	if err != nil {
-		return nil, fmt.Errorf("compress: %w", err)
-	}
-	return clientOnce.R().
-		SetBody(data).
-		Post("/update/")
-}
-
-func RequestMetric() {
-	currentMetrics := metrics{
-		PollCount: 0,
-		metrics:   make(map[string]float64),
-	}
-
-	{
-		lastSendTime := time.Now()
-		for {
+func RequestMetric(mem *service.Metrics, client *api.Client, done chan bool) error {
+	lastSendTime := time.Now()
+	for {
+		select {
+		case <-done:
+			return nil
+		default:
 			//update metrics
-			time.Sleep(time.Duration(Cfg.PollInterval) * time.Second)
-			currentMetrics.updateMetrics()
+			time.Sleep(time.Duration(config.AgentConfig.PollInterval) * time.Second)
+			mem.UpdateMetrics()
 			//send metrics
-			if time.Since(lastSendTime) >= time.Duration(Cfg.ReportInterval)*time.Second {
-				if err := currentMetrics.sendMetricsJSON(); err != nil {
-					fmt.Println("error catch: ", err)
-					return
+			if time.Since(lastSendTime) >= time.Duration(config.AgentConfig.ReportInterval)*time.Second {
+				data := mem.GetMetric()
+				if err := client.SendMetricsJSON(data); err != nil {
+					done <- true
+					return err
 				}
 				lastSendTime = time.Now()
 			}
 		}
+
 	}
 }
 
 func main() {
-	logger, err := zap.NewDevelopment()
-	if err != nil {
+	if err := logger.InitLogger(); err != nil {
 		panic(err)
 	}
-	log = logger
-	InitConfig()
-	log.Info("agent start", zap.Any("config", Cfg))
-	newClientResty()
-	go RequestMetric()
+
+	if err := config.InitConfig(); err != nil {
+		logger.Log.Info("config init", zap.Error(err))
+		panic(err)
+	}
+	logger.Log.Info("config start", zap.Any("value", config.AgentConfig))
+
 	exit := make(chan os.Signal, 1)
 	signal.Notify(exit, os.Interrupt, syscall.SIGTERM)
-	// Ожидание сигнала завершения
-	sig := <-exit
-	log.Info("signal exit", zap.Any("value", sig))
-	fmt.Scan()
+	done := make(chan bool)
+	go func() {
+		sig := <-exit
+		logger.Log.Info("close app", zap.Any("signal", sig))
+		done <- true
+	}()
+
+	memS := service.NewMemStorage()
+	client := api.NewClientResty("Content-Encoding", "gzip", false)
+	go func() {
+		if err := RequestMetric(memS, client, done); err != nil {
+			logger.Log.Info("request metric", zap.Error(err))
+			done <- true
+		}
+	}()
+	<-done
+	close(done)
+	fmt.Scanln()
 }
