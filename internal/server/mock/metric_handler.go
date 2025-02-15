@@ -35,32 +35,46 @@ func (m *MockMetricHandler) EXPECT() *MockMetricHandlerMockRecorder {
 	return m.recorder
 }
 
-// CollectingMetric mocks base method.
-func (m *MockMetricHandler) CollectingMetric(metrics *models.Metrics) error {
+// Batch mocks base method.
+func (m *MockMetricHandler) Batch(ctx context.Context, metrics []models.Metrics) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CollectingMetric", metrics)
+	ret := m.ctrl.Call(m, "Batch", ctx, metrics)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Batch indicates an expected call of Batch.
+func (mr *MockMetricHandlerMockRecorder) Batch(ctx, metrics interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Batch", reflect.TypeOf((*MockMetricHandler)(nil).Batch), ctx, metrics)
+}
+
+// CollectingMetric mocks base method.
+func (m *MockMetricHandler) CollectingMetric(metric *models.Metrics) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CollectingMetric", metric)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // CollectingMetric indicates an expected call of CollectingMetric.
-func (mr *MockMetricHandlerMockRecorder) CollectingMetric(metrics interface{}) *gomock.Call {
+func (mr *MockMetricHandlerMockRecorder) CollectingMetric(metric interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CollectingMetric", reflect.TypeOf((*MockMetricHandler)(nil).CollectingMetric), metrics)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CollectingMetric", reflect.TypeOf((*MockMetricHandler)(nil).CollectingMetric), metric)
 }
 
 // GetMetric mocks base method.
-func (m *MockMetricHandler) GetMetric(metrics *models.Metrics) error {
+func (m *MockMetricHandler) GetMetric(metric *models.Metrics) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetMetric", metrics)
+	ret := m.ctrl.Call(m, "GetMetric", metric)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // GetMetric indicates an expected call of GetMetric.
-func (mr *MockMetricHandlerMockRecorder) GetMetric(metrics interface{}) *gomock.Call {
+func (mr *MockMetricHandlerMockRecorder) GetMetric(metric interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMetric", reflect.TypeOf((*MockMetricHandler)(nil).GetMetric), metrics)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMetric", reflect.TypeOf((*MockMetricHandler)(nil).GetMetric), metric)
 }
 
 // GetMetricAll mocks base method.

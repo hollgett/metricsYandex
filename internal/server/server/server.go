@@ -26,6 +26,7 @@ func setupRouters(h *api.APIMetric, log logger.Logger) *chi.Mux {
 		r.Post("/", h.UpdateMetricJSON)
 		r.Post("/{typeM}/{nameM}/{valueM}", h.UpdateMetricPlainText)
 	})
+	rtr.Post("/updates/", h.UpdateBatch)
 
 	return rtr
 }

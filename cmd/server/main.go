@@ -39,7 +39,6 @@ func main() {
 		cancel()
 	}
 	logger.LogAny("server start", "config", cfg)
-	// db, _ := database.Connect(cfg.DataBaseDSN)
 	repo, err := initStorage(ctx, cfg, logger)
 	if err != nil {
 		logger.LogErr("repository init", err)
@@ -83,7 +82,7 @@ func handlerShutDown(cancel context.CancelFunc, log logger.Logger) {
 func initStorage(ctx context.Context, cfg *config.Config, log logger.Logger) (repository.Repository, error) {
 	switch {
 	case cfg.DataBaseDSN != "":
-		postgresDB, err := postgres.New(ctx, cfg.DataBaseDSN)
+		postgresDB, err := postgres.New(ctx, cfg.DataBaseDSN, log)
 		if err != nil {
 			return nil, err
 		}

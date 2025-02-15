@@ -35,6 +35,20 @@ func (m *MockRepository) EXPECT() *MockRepositoryMockRecorder {
 	return m.recorder
 }
 
+// Batch mocks base method.
+func (m *MockRepository) Batch(ctx context.Context, metrics []models.Metrics) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Batch", ctx, metrics)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Batch indicates an expected call of Batch.
+func (mr *MockRepositoryMockRecorder) Batch(ctx, metrics interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Batch", reflect.TypeOf((*MockRepository)(nil).Batch), ctx, metrics)
+}
+
 // Close mocks base method.
 func (m *MockRepository) Close() error {
 	m.ctrl.T.Helper()
@@ -93,15 +107,15 @@ func (mr *MockRepositoryMockRecorder) Ping(ctx interface{}) *gomock.Call {
 }
 
 // Save mocks base method.
-func (m *MockRepository) Save(data models.Metrics) error {
+func (m *MockRepository) Save(metric models.Metrics) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Save", data)
+	ret := m.ctrl.Call(m, "Save", metric)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Save indicates an expected call of Save.
-func (mr *MockRepositoryMockRecorder) Save(data interface{}) *gomock.Call {
+func (mr *MockRepositoryMockRecorder) Save(metric interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Save", reflect.TypeOf((*MockRepository)(nil).Save), data)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Save", reflect.TypeOf((*MockRepository)(nil).Save), metric)
 }

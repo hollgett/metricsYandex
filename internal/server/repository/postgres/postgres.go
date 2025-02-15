@@ -2,13 +2,15 @@ package postgres
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/hollgett/metricsYandex.git/internal/server/database"
+	"github.com/hollgett/metricsYandex.git/internal/server/logger"
 	"github.com/hollgett/metricsYandex.git/internal/server/models"
 	"github.com/hollgett/metricsYandex.git/internal/server/repository"
+	"github.com/jmoiron/sqlx"
 )
 
 const (
@@ -33,7 +35,7 @@ DO UPDATE SET
                 WHEN EXCLUDED.type = 'gauge' THEN EXCLUDED.value 
                 ELSE EXCLUDED.value 
             END;`
-	getMetricValue = `SELECT delta, value FROM metrics WHERE name = $1`
+	getMetricValue = `SELECT delta, value FROM metrics WHERE name = :name`
 	getMetricAll   = `SELECT * FROM metrics`
 )
 
@@ -42,13 +44,14 @@ var (
 )
 
 type Postgres struct {
-	db         *sql.DB
-	saveStmt   *sql.Stmt
-	getStmt    *sql.Stmt
-	getAllStmt *sql.Stmt
+	db         *sqlx.DB
+	log        logger.Logger
+	saveStmt   *sqlx.Stmt
+	getStmt    *sqlx.NamedStmt
+	getAllStmt *sqlx.Stmt
 }
 
-func New(ctx context.Context, dsn string) (repository.Repository, error) {
+func New(ctx context.Context, dsn string, log logger.Logger) (repository.Repository, error) {
 	db, err := database.Connect(dsn)
 	if err != nil {
 		return nil, fmt.Errorf("database connect: %w", err)
@@ -56,48 +59,39 @@ func New(ctx context.Context, dsn string) (repository.Repository, error) {
 	if _, err := db.ExecContext(ctx, tableScheme); err != nil {
 		return nil, fmt.Errorf("create table: %w", err)
 	}
-	saveStmt, err := db.PrepareContext(ctx, saveAndUpdQuery)
+	saveStmt, err := db.PreparexContext(ctx, saveAndUpdQuery)
 	if err != nil {
 		return nil, fmt.Errorf("prepare save: %w", err)
 	}
-	getStmt, err := db.PrepareContext(ctx, getMetricValue)
+	getStmt, err := db.PrepareNamedContext(ctx, getMetricValue)
 	if err != nil {
 		return nil, fmt.Errorf("prepare get value: %w", err)
 	}
-	getAll, err := db.PrepareContext(ctx, getMetricAll)
+	getAll, err := db.PreparexContext(ctx, getMetricAll)
 	if err != nil {
 		return nil, fmt.Errorf("prepare get all: %w", err)
 	}
 
 	return &Postgres{
 		db:         db,
+		log:        log,
 		saveStmt:   saveStmt,
 		getStmt:    getStmt,
 		getAllStmt: getAll,
 	}, nil
 }
 
-func (pg *Postgres) Save(data models.Metrics) error {
-	switch data.MType {
-	case gauge:
-
-		if _, err := pg.saveStmt.Exec(data.ID, data.MType, 0, data.Value); err != nil {
-			return err
-		}
-		return nil
-	case counter:
-		if _, err := pg.saveStmt.Exec(data.ID, data.MType, data.Delta, 0); err != nil {
-			return err
-		}
-		return nil
-	default:
-		return ErrMetricTypeUnknown
+func (pg *Postgres) Save(metric models.Metrics) error {
+	if _, err := pg.saveStmt.Exec(metric.ID, metric.MType, metric.Delta, metric.Value); err != nil {
+		return err
 	}
+	return nil
 }
+
 func (pg *Postgres) Get(metric *models.Metrics) error {
 	val := new(float64)
 	delta := new(int64)
-	row := pg.getStmt.QueryRow(metric.ID)
+	row := pg.getStmt.QueryRow(metric)
 	if row.Err() != nil {
 		return row.Err()
 	}
@@ -106,6 +100,7 @@ func (pg *Postgres) Get(metric *models.Metrics) error {
 	metric.Value = val
 	return nil
 }
+
 func (pg *Postgres) GetAll() ([]models.Metrics, error) {
 	rows, err := pg.getAllStmt.Query()
 	if err != nil {
@@ -130,9 +125,11 @@ func (pg *Postgres) GetAll() ([]models.Metrics, error) {
 	}
 	return metrics, nil
 }
+
 func (pg *Postgres) Ping(ctx context.Context) error {
 	return pg.db.PingContext(ctx)
 }
+
 func (pg *Postgres) Close() error {
 	var errs []error
 	if pg.saveStmt != nil {
@@ -154,4 +151,32 @@ func (pg *Postgres) Close() error {
 		errs = append(errs, fmt.Errorf("close db: %w", err))
 	}
 	return errors.Join(errs...)
+}
+
+func (pg *Postgres) Batch(ctx context.Context, metrics []models.Metrics) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	ctxTx, cancel := context.WithTimeout(ctx, 1*time.Second)
+	defer cancel()
+
+	tx, err := pg.db.BeginTx(ctxTx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	stmt, err := tx.PrepareContext(ctxTx, saveAndUpdQuery)
+	if err != nil {
+		return err
+	}
+	for _, v := range metrics {
+		if _, err := stmt.Exec(v.ID, v.MType, v.Delta, v.Value); err != nil {
+			pg.log.LogAny("BATCH ERROR", "VALUE", v)
+			pg.log.LogAny("FULL REQUEST BATCH", "value", metrics)
+			return err
+		}
+	}
+
+	return tx.Commit()
 }
