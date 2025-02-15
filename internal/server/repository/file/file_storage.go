@@ -105,7 +105,6 @@ func (fs *FileStorage) updateTicker(ctx context.Context, updateInt int) {
 			dStorage, err := fs.GetAll()
 			if err != nil {
 				fs.Logger.LogErr("storageget all", err)
-				return
 			}
 			if err := fs.update(dStorage); err != nil {
 				fs.LogErr("update file", err)

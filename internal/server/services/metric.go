@@ -37,6 +37,12 @@ func (m *metricHandler) ValidateMetric(metric *models.Metrics) (int, error) {
 }
 
 func (m *metricHandler) CollectingMetric(metrics *models.Metrics) error {
+	switch metrics.MType {
+	case gauge:
+		metrics.Delta = &delta
+	case counter:
+		metrics.Value = &value
+	}
 	return m.repo.Save(*metrics)
 }
 
