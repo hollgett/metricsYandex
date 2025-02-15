@@ -24,7 +24,12 @@ func (a *APIMetric) RespondWithError(w http.ResponseWriter, code int, logMessage
 
 func (a *APIMetric) RespondWithSuccessJSON(w http.ResponseWriter, code int, response models.Metrics) {
 	w.Header().Set("Content-Type", jsonT)
-
+	switch response.MType {
+	case "gauge":
+		response.Delta = nil
+	case "counter":
+		response.Value = nil
+	}
 	var buffer bytes.Buffer
 	if err := json.NewEncoder(&buffer).Encode(response); err != nil {
 		a.RespondWithError(w, http.StatusInternalServerError, "EncoderJson", err)

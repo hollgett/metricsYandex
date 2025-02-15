@@ -92,6 +92,7 @@ func (fs *FileStorage) Batch(ctx context.Context, metrics []models.Metrics) erro
 
 func (fs *FileStorage) updateTicker(ctx context.Context, updateInt int) {
 	if err := ctx.Err(); err != nil {
+		fs.Logger.LogErr("context", err)
 		return
 	}
 	ticker := time.NewTicker(time.Duration(updateInt) * time.Second)
@@ -103,7 +104,8 @@ func (fs *FileStorage) updateTicker(ctx context.Context, updateInt int) {
 		default:
 			dStorage, err := fs.GetAll()
 			if err != nil {
-
+				fs.Logger.LogErr("storageget all", err)
+				return
 			}
 			if err := fs.update(dStorage); err != nil {
 				fs.LogErr("update file", err)
