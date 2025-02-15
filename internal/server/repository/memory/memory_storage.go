@@ -131,6 +131,23 @@ func (ms *MemStorage) Ping(ctx context.Context) error {
 	return nil
 }
 
+func (ms *MemStorage) Batch(ctx context.Context, metrics []models.Metrics) error {
+	if err := ctx.Err(); err != nil {
+		return ctx.Err()
+	}
+	for _, v := range metrics {
+		switch v.MType {
+		case "gauge":
+			ms.setGauge(v.ID, *v.Value)
+		case "counter":
+			ms.addCounter(v.ID, *v.Delta)
+		default:
+			return ErrMetric
+		}
+	}
+	return nil
+}
+
 func (ms *MemStorage) Close() error {
 	return nil
 }

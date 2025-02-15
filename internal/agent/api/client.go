@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -28,8 +29,8 @@ func NewClientResty(header, value string, debug bool) *Client {
 	}
 }
 
-func (c *Client) request(metric models.Metrics) (*resty.Response, error) {
-	data, err := utils.Marshal(metric)
+func (c *Client) request(metric []models.Metrics) (*resty.Response, error) {
+	data, err := json.Marshal(metric)
 	if err != nil {
 		return nil, fmt.Errorf("encode json: %w", err)
 	}
@@ -40,21 +41,24 @@ func (c *Client) request(metric models.Metrics) (*resty.Response, error) {
 
 	return c.Client.R().
 		SetBody(data).
-		Post(`/update/`)
+		Post(`/updates/`)
 }
 
 func (c *Client) SendMetricsJSON(ctx context.Context, dataMetric []models.Metrics, retryCount int, t time.Duration) error {
 	ctxSend, cancel := context.WithCancel(ctx)
 	defer cancel()
-	for _, metric := range dataMetric {
-		if err := c.SendWithRetry(ctxSend, retryCount, t, metric); err != nil {
-			return err
-		}
+	if err := c.SendWithRetry(ctxSend, retryCount, t, dataMetric); err != nil {
+		return err
 	}
+	// for _, metric := range dataMetric {
+	// 	if err := c.SendWithRetry(ctxSend, retryCount, t, metric); err != nil {
+	// 		return err
+	// 	}
+	// }
 	return nil
 }
 
-func (c *Client) SendWithRetry(ctx context.Context, retryCount int, t time.Duration, metric models.Metrics) error {
+func (c *Client) SendWithRetry(ctx context.Context, retryCount int, t time.Duration, metric []models.Metrics) error {
 	for i := 0; i <= retryCount; i++ {
 		resp, err := c.request(metric)
 		if err == nil && resp.IsSuccess() {
@@ -63,9 +67,9 @@ func (c *Client) SendWithRetry(ctx context.Context, retryCount int, t time.Durat
 		}
 		select {
 		case <-time.After(t):
-			logger.Log.Info("request retry", zap.Error(err), zap.Int("count", i+1))
+			logger.Log.Info("request retry", zap.String("response", resp.String()), zap.Error(err), zap.Int("count", i+1))
 		case <-ctx.Done():
-			logger.Log.Info("context cancel", zap.Error(ctx.Err()))
+			logger.Log.Info("context cancel", zap.String("response", resp.String()), zap.Error(ctx.Err()))
 			return err
 		}
 		if i == 2 {

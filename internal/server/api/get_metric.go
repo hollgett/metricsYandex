@@ -44,7 +44,7 @@ func (a *APIMetric) GetMetricJSON(w http.ResponseWriter, r *http.Request) {
 		a.RespondWithError(w, http.StatusNotFound, "getMetricJSON: GetMetric service error", err)
 		return
 	}
-	a.RespondWithSuccessJson(w, http.StatusOK, metrics)
+	a.RespondWithSuccessJSON(w, http.StatusOK, metrics)
 }
 
 func (a *APIMetric) GetMetricAll(w http.ResponseWriter, r *http.Request) {

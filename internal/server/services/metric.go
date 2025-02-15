@@ -13,6 +13,11 @@ const (
 	counter string = "counter"
 )
 
+var (
+	delta int64   = 0
+	value float64 = 0
+)
+
 type metricHandler struct {
 	repo repository.Repository
 }
@@ -35,8 +40,14 @@ func (m *metricHandler) CollectingMetric(metrics *models.Metrics) error {
 	return m.repo.Save(*metrics)
 }
 
-func (m *metricHandler) GetMetric(metrics *models.Metrics) error {
-	if err := m.repo.Get(metrics); err != nil {
+func (m *metricHandler) GetMetric(metric *models.Metrics) error {
+	switch metric.MType {
+	case gauge:
+		metric.Delta = &delta
+	case counter:
+		metric.Value = &value
+	}
+	if err := m.repo.Get(metric); err != nil {
 		return fmt.Errorf("get metric have error: %w", err)
 	}
 	return nil
@@ -72,4 +83,22 @@ func (m *metricHandler) GetMetricAll() (string, error) {
 
 func (m *metricHandler) PingDB(ctx context.Context) error {
 	return m.repo.Ping(ctx)
+}
+
+func (m *metricHandler) Batch(ctx context.Context, metrics []models.Metrics) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	for i, _ := range metrics {
+		switch metrics[i].MType {
+		case gauge:
+			metrics[i].Delta = &delta
+		case counter:
+			metrics[i].Value = &value
+		}
+	}
+	if err := m.repo.Batch(ctx, metrics); err != nil {
+		return fmt.Errorf("batch repo: %w", err)
+	}
+	return nil
 }

@@ -22,7 +22,7 @@ func (a *APIMetric) RespondWithError(w http.ResponseWriter, code int, logMessage
 	http.Error(w, err.Error(), code)
 }
 
-func (a *APIMetric) RespondWithSuccessJson(w http.ResponseWriter, code int, response models.Metrics) {
+func (a *APIMetric) RespondWithSuccessJSON(w http.ResponseWriter, code int, response models.Metrics) {
 	w.Header().Set("Content-Type", jsonT)
 
 	var buffer bytes.Buffer

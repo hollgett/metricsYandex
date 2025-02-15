@@ -18,14 +18,6 @@ var (
 	ErrMetric = errors.New("unknown metrics")
 )
 
-type File interface {
-	Save(data models.Metrics) error
-	Get(metric *models.Metrics) error
-	GetAll() ([]models.Metrics, error)
-	Ping(ctx context.Context) error
-	Close() error
-}
-
 type FileStorage struct {
 	file      *os.File
 	updateInt int
@@ -75,6 +67,9 @@ func (fs *FileStorage) Save(data models.Metrics) error {
 }
 
 func (fs *FileStorage) Ping(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return ctx.Err()
+	}
 	_, err := fs.file.Stat()
 	if err != nil {
 		fs.LogErr("ping file", err)
@@ -83,7 +78,22 @@ func (fs *FileStorage) Ping(ctx context.Context) error {
 	return nil
 }
 
+func (fs *FileStorage) Batch(ctx context.Context, metrics []models.Metrics) error {
+	if err := ctx.Err(); err != nil {
+		return ctx.Err()
+	}
+	for _, v := range metrics {
+		if err := fs.Save(v); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (fs *FileStorage) updateTicker(ctx context.Context, updateInt int) {
+	if err := ctx.Err(); err != nil {
+		return
+	}
 	ticker := time.NewTicker(time.Duration(updateInt) * time.Second)
 	defer ticker.Stop()
 	for range ticker.C {

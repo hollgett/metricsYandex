@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"strconv"
@@ -57,5 +58,21 @@ func (a *APIMetric) UpdateMetricJSON(w http.ResponseWriter, r *http.Request) {
 		a.RespondWithError(w, http.StatusBadRequest, "CollectingMetric json", err)
 		return
 	}
-	a.RespondWithSuccessJson(w, http.StatusOK, metrics)
+	a.RespondWithSuccessJSON(w, http.StatusOK, metrics)
+}
+
+func (a *APIMetric) UpdateBatch(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithCancel(r.Context())
+	defer cancel()
+	var metric []models.Metrics
+	if err := json.NewDecoder(r.Body).Decode(&metric); err != nil {
+		a.RespondWithError(w, http.StatusInternalServerError, "batch decode", err)
+		return
+	}
+	a.log.LogAny("batch update", "len", len(metric))
+	if err := a.handler.Batch(ctx, metric); err != nil {
+		a.RespondWithError(w, http.StatusBadRequest, "handler batch", err)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
 }
