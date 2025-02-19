@@ -10,6 +10,8 @@ import (
 	"github.com/hollgett/metricsYandex.git/internal/server/logger"
 	"github.com/hollgett/metricsYandex.git/internal/server/models"
 	"github.com/hollgett/metricsYandex.git/internal/server/repository"
+	"github.com/jackc/pgerrcode"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -19,7 +21,7 @@ const (
 	tableScheme = `CREATE TABLE IF NOT EXISTS metrics (
 "name" VARCHAR(70) PRIMARY KEY,
 "type" VARCHAR(10) NOT NULL,
-"delta" INT NOT NULL DEFAULT 0,
+"delta" BIGINT NOT NULL DEFAULT 0,
 "value" double precision NOT NULL DEFAULT 0,
 CONSTRAINT unique_id_type UNIQUE (name, type)
 );`
@@ -41,6 +43,7 @@ DO UPDATE SET
 
 var (
 	ErrMetricTypeUnknown = errors.New("unknown metric")
+	retryTimeSleep       = []int{1, 3, 5}
 )
 
 type Postgres struct {
@@ -82,8 +85,15 @@ func New(ctx context.Context, dsn string, log logger.Logger) (repository.Reposit
 }
 
 func (pg *Postgres) Save(metric models.Metrics) error {
-	if _, err := pg.saveStmt.Exec(metric.ID, metric.MType, metric.Delta, metric.Value); err != nil {
-		return err
+	for _, timeSleep := range retryTimeSleep {
+		if _, err := pg.saveStmt.Exec(metric.ID, metric.MType, metric.Delta, metric.Value); err != nil {
+			if isRetry(err) {
+				pg.log.LogAny("retry request", "code", err)
+				time.Sleep(time.Duration(timeSleep) * time.Second)
+				continue
+			}
+			return err
+		}
 	}
 	return nil
 }
@@ -179,4 +189,17 @@ func (pg *Postgres) Batch(ctx context.Context, metrics []models.Metrics) error {
 	}
 
 	return tx.Commit()
+}
+
+func isRetry(err error) bool {
+
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		switch pgErr.Code {
+		case pgerrcode.ConnectionException, pgerrcode.ConnectionDoesNotExist, pgerrcode.ConnectionFailure:
+			return true
+
+		}
+	}
+	return false
 }
