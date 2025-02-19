@@ -95,7 +95,7 @@ func (m *metricHandler) Batch(ctx context.Context, metrics []models.Metrics) err
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	for i, _ := range metrics {
+	for i := range metrics {
 		switch metrics[i].MType {
 		case gauge:
 			metrics[i].Delta = &delta
