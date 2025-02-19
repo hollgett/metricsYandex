@@ -19,7 +19,7 @@ const (
 	tableScheme = `CREATE TABLE IF NOT EXISTS metrics (
 "name" VARCHAR(70) PRIMARY KEY,
 "type" VARCHAR(10) NOT NULL,
-"delta" INT NOT NULL DEFAULT 0,
+"delta" BIGINT NOT NULL DEFAULT 0,
 "value" double precision NOT NULL DEFAULT 0,
 CONSTRAINT unique_id_type UNIQUE (name, type)
 );`
